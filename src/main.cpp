@@ -42,24 +42,35 @@ void streamFile(SdFile& streamed_file, const String& contentType) {
   // Get file size
   const uint32_t fileSize = streamed_file.fileSize();
   
+  // Send headers and start the response
+  // Note: server.send() with empty content will set Content-Length to 0
+  // We need to use a different approach
+  
+  // Method 1: Use sendHeader with custom status
+  String header = "HTTP/1.1 200 OK\r\n";
+  header += "Content-Type: " + contentType + "\r\n";
+  header += "Content-Length: " + String(fileSize) + "\r\n";
+  header += "Connection: close\r\n";
+  header += "\r\n";  // Empty line to end headers
+  
   // Send headers
-  server.sendHeader("Content-Type", contentType);
-  server.sendHeader("Content-Length", String(fileSize));
-  server.sendHeader("Connection", "close");
-  server.send(200, contentType, "");
+  server.sendContent(header);
   
   // Stream file in chunks
   constexpr uint16_t CHUNK_SIZE = 1024; // 1KB chunks
   uint8_t buffer[CHUNK_SIZE];
   
+  size_t totalSent = 0;
   while (streamed_file.available()) {
     const int bytesRead = streamed_file.read(buffer, CHUNK_SIZE);
     if (bytesRead > 0) {
       server.sendContent(reinterpret_cast<const char *>(buffer), bytesRead);
+      totalSent += bytesRead;
     }
   }
+  
+  Serial.printf("Sent %u bytes (expected %u)\n", totalSent, fileSize);
 }
-
 // Serve files from SD card
 void handleFileRequest() {
   String path = server.uri();
@@ -156,13 +167,13 @@ void setup() {
   Serial.print("📶 Connecting to Wi-Fi");
   WiFi.begin(ssid, password);
   int attempts = 0;
-  while (WiFiClass::status() != WL_CONNECTED && attempts < 30) {
+  while (WiFi.status() != WL_CONNECTED && attempts < 30) {
     delay(500);
     Serial.print(".");
     attempts++;
   }
   
-  if (WiFiClass::status() == WL_CONNECTED) {
+  if (WiFi.status() == WL_CONNECTED) {
     Serial.println("\n✅ WiFi connected!");
     Serial.print("📡 IP address: ");
     Serial.println(WiFi.localIP());
