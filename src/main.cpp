@@ -1,20 +1,23 @@
 #include <WiFi.h>
-#include <WebServer.h>
 #include <SPI.h>
 #include <secrets.h>
 #include <DashboardServer.h>
 #include <PicoMQTT.h>
-#include <PicoWebsocket.h>
 
-// regular tcp server on port 1883
-static WiFiServer tcp_server(1883);
+#include "MqttServer.h"
 
-// websocket server on tcp port 80
-static WiFiServer websocket_underlying_server(8883);
+static TaskHandle_t serverTaskHandle;
 
-static PicoWebsocket::Server websocket_server(websocket_underlying_server);
+[[noreturn]] static void serverTask() {
+  MqttServer::setup();
+  DashboardServer::setup();
+  while (true) {
+    MqttServer::loop();
+    DashboardServer::loop();
+    vTaskDelay(pdMS_TO_TICKS(0.1));
+  }
+}
 
-static PicoMQTT::Server mqtt(tcp_server, websocket_server); // NOTE: this constructor can take any number of server parameters
 
 void setup()
 {
@@ -42,31 +45,12 @@ void setup()
     return;
   }
 
-  mqtt.subscribe("#", [](const char *topic, const char *payload)
-                 {
-        // payload might be binary, but PicoMQTT guarantees that it's zero-terminated
-        Serial.printf("Received message in topic '%s': %s\n\r", topic, payload); });
-
   delay(100);
-  mqtt.begin();
-  DashboardServer::setup();
+  xTaskCreatePinnedToCore(reinterpret_cast<TaskFunction_t>(serverTask),"servers",10240,nullptr,1,&serverTaskHandle,0);
 }
 
-unsigned long last_publish_time = 0;
-int greeting_number = 1;
 
 void loop()
 {
-  DashboardServer::loop();
-  mqtt.loop();
-  if (millis() - last_publish_time >= 3000)
-  {
-    // We're publishing to a topic, which we're subscribed too, but these message will *not* be delivered locally.
-    const String topic = "picomqtt/esp-32";
-    const String message = "Hello #" + String(greeting_number++);
-    Serial.printf("Publishing message in topic '%s': %s\n\r", topic.c_str(), message.c_str());
-    mqtt.publish(topic, message);
-    last_publish_time = millis();
-  }
-  // delay(1); // Small delay to prevent watchdog issues
+  delay(500);
 }

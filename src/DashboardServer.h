@@ -20,6 +20,7 @@ class DashboardServer {
     static void handleFileRequest();
     static void handleFavicon();
 public:
+    DashboardServer() = delete;
     static void setup();
     static void loop();
 };
