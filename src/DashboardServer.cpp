@@ -17,6 +17,7 @@
 WebServer DashboardServer::server = WebServer(80);
 SdFat DashboardServer::sd;
 SdFile DashboardServer::file;
+bool DashboardServer::success = false;
 
 void DashboardServer::setup() {
 
@@ -36,34 +37,7 @@ void DashboardServer::setup() {
     return;
   }
 
-  // Check card type
-  uint8_t cardType = sd.card()->type();
-  Serial.print(" ✅ Card Type: ");
-  if (cardType == SD_CARD_TYPE_SD1) Serial.println("SD1");
-  else if (cardType == SD_CARD_TYPE_SD2) Serial.println("SD2");
-  else if (cardType == SD_CARD_TYPE_SDHC) Serial.println("SDHC");
-  else Serial.println("UNKNOWN");
-
-  // Print card size
-  const uint64_t cardSize = sd.card()->sectorCount() * 512ULL;
-  Serial.print("💾 Card Size: ");
-  if (cardSize < 1024 * 1024) {
-    Serial.print(cardSize / 1024);
-    Serial.println(" KB");
-  } else if (cardSize < 1024 * 1024 * 1024) {
-    Serial.print(cardSize / (1024 * 1024));
-    Serial.println(" MB");
-  } else {
-    Serial.print(cardSize / (1024 * 1024 * 1024));
-    Serial.println(" GB");
-  }
-
-  // List contents of /web folder to verify
-  Serial.println("\n📁 Files in /web folder:");
-  sd.ls("/web", LS_R | LS_SIZE);
-  Serial.println();
-
-
+    success = true;
   // --- Configure Web Server ---
   server.on("/favicon.ico", handleFavicon);
   server.onNotFound(handleFileRequest);
@@ -75,6 +49,9 @@ void DashboardServer::setup() {
 }
 
 void DashboardServer::loop() {
+    if (!success) {
+        return;
+    }
     server.handleClient();
 }
 
@@ -129,7 +106,6 @@ void DashboardServer::streamFile(SdFile& streamed_file, const String& contentTyp
         }
     }
 
-    Serial.printf("Sent %u bytes (expected %u)\n", totalSent, fileSize);
 }
 // Serve files from SD card
 void DashboardServer::handleFileRequest() {
@@ -141,9 +117,6 @@ void DashboardServer::handleFileRequest() {
     } else {
         path = "/web" + path;  // All files are in /web folder
     }
-
-    Serial.print("📂 Requesting: ");
-    Serial.println(path);
 
     // Check if file exists
     if (!sd.exists(path.c_str())) {
@@ -160,12 +133,7 @@ void DashboardServer::handleFileRequest() {
     }
 
     // Get content type and serve file
-    String contentType = getContentType(path);
-    Serial.print("📤 Serving: ");
-    Serial.print(path);
-    Serial.print(" (");
-    Serial.print(contentType);
-    Serial.println(")");
+    const String contentType = getContentType(path);
 
     streamFile(file, contentType);
     file.close();

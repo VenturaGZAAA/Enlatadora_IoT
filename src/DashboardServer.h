@@ -13,6 +13,7 @@ class DashboardServer {
     static WebServer server;
     static SdFat sd;
     static SdFile file;
+    static bool success;
 
     static String getContentType(const String& filename);
     static void streamFile(SdFile& streamed_file, const String& contentType);
