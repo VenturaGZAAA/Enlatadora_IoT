@@ -20,32 +20,31 @@ SdFile DashboardServer::file;
 bool DashboardServer::success = false;
 
 void DashboardServer::setup() {
+    Serial.println("\n=== 🚀 ESP32-S3 Web Server ===");
 
-  Serial.println("\n=== 🚀 ESP32-S3 Web Server ===");
+    // --- Initialize SD Card with SdFat ---
+    Serial.print("📀 Initializing SD card...");
 
-  // --- Initialize SD Card with SdFat ---
-  Serial.print("📀 Initializing SD card...");
+    // Configure SPI pins for SdFat
+    SPI.begin(SD_SCK, SD_MISO, SD_MOSI, SD_CS);
 
-  // Configure SPI pins for SdFat
-  SPI.begin(SD_SCK, SD_MISO, SD_MOSI, SD_CS);
-
-  // Initialize SdFat with slower speed for stability
-  if (!sd.begin(SD_CS, SD_SCK_MHZ(4))) {
-    Serial.println(" ❌ Card Mount Failed!");
-    Serial.print("⚠️ Error code: ");
-    Serial.println(sd.card()->errorCode());
-    return;
-  }
+    // Initialize SdFat with slower speed for stability
+    if (!sd.begin(SD_CS, SD_SCK_MHZ(4))) {
+        Serial.println(" ❌ Card Mount Failed!");
+        Serial.print("⚠️ Error code: ");
+        Serial.println(sd.card()->errorCode());
+        return;
+    }
 
     success = true;
-  // --- Configure Web Server ---
-  server.on("/favicon.ico", handleFavicon);
-  server.onNotFound(handleFileRequest);
+    // --- Configure Web Server ---
+    server.on("/favicon.ico", handleFavicon);
+    server.onNotFound(handleFileRequest);
 
-  server.begin();
-  Serial.println("🌐 HTTP server started on port 80");
-  Serial.println("📍 Open http://" + WiFi.localIP().toString() + " in your browser");
-  Serial.println("\n========================================\n");
+    server.begin();
+    Serial.println("🌐 HTTP server started on port 80");
+    Serial.println("📍 Open http://" + WiFi.localIP().toString() + " in your browser");
+    Serial.println("\n========================================\n");
 }
 
 void DashboardServer::loop() {
@@ -56,7 +55,7 @@ void DashboardServer::loop() {
 }
 
 // Helper function to get content type
-String DashboardServer::getContentType(const String& filename) {
+String DashboardServer::getContentType(const String &filename) {
     if (filename.endsWith(".html") || filename.endsWith(".htm")) return "text/html";
     if (filename.endsWith(".css")) return "text/css";
     if (filename.endsWith(".js")) return "application/javascript";
@@ -74,8 +73,9 @@ String DashboardServer::getContentType(const String& filename) {
     if (filename.endsWith(".webmanifest")) return "application/manifest+json";
     return "application/octet-stream";
 }
+
 // Manually stream file from SdFat to web client
-void DashboardServer::streamFile(SdFile& streamed_file, const String& contentType) {
+void DashboardServer::streamFile(SdFile &streamed_file, const String &contentType) {
     // Get file size
     const uint32_t fileSize = streamed_file.fileSize();
 
@@ -88,7 +88,7 @@ void DashboardServer::streamFile(SdFile& streamed_file, const String& contentTyp
     header += "Content-Type: " + contentType + "\r\n";
     header += "Content-Length: " + String(fileSize) + "\r\n";
     header += "Connection: close\r\n";
-    header += "\r\n";  // Empty line to end headers
+    header += "\r\n"; // Empty line to end headers
 
     // Send headers
     server.sendContent(header);
@@ -105,8 +105,8 @@ void DashboardServer::streamFile(SdFile& streamed_file, const String& contentTyp
             totalSent += bytesRead;
         }
     }
-
 }
+
 // Serve files from SD card
 void DashboardServer::handleFileRequest() {
     String path = server.uri();
@@ -115,7 +115,7 @@ void DashboardServer::handleFileRequest() {
     if (path == "/" || path == "") {
         path = "/web/index.html";
     } else {
-        path = "/web" + path;  // All files are in /web folder
+        path = "/web" + path; // All files are in /web folder
     }
 
     // Check if file exists
@@ -138,6 +138,7 @@ void DashboardServer::handleFileRequest() {
     streamFile(file, contentType);
     file.close();
 }
+
 // Handle favicon.ico requests (optional, to avoid 404s)
 void DashboardServer::handleFavicon() {
     server.send(204, "text/plain", ""); // No content

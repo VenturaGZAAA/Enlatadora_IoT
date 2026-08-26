@@ -13,11 +13,15 @@ class MqttServer {
     static WiFiServer tcp_server;
     static WiFiServer websocket_underlying_server;
     static PicoWebsocket::Server<WiFiServer> websocket_server;
-    static  PicoMQTT::Server mqtt;
+    static PicoMQTT::Server mqtt;
+    static long lastTime;
+    static bool led;
 
-    public:
+public:
     MqttServer() = delete;
+
     static void setup();
+
     static void loop();
 };
 

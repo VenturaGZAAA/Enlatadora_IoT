@@ -15,13 +15,19 @@ class DashboardServer {
     static SdFile file;
     static bool success;
 
-    static String getContentType(const String& filename);
-    static void streamFile(SdFile& streamed_file, const String& contentType);
+    static String getContentType(const String &filename);
+
+    static void streamFile(SdFile &streamed_file, const String &contentType);
+
     static void handleFileRequest();
+
     static void handleFavicon();
+
 public:
     DashboardServer() = delete;
+
     static void setup();
+
     static void loop();
 };
 
