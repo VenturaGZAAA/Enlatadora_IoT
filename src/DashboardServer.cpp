@@ -5,6 +5,7 @@
 #include <WebServer.h>
 #include <SPI.h>
 #include <SdFat.h>
+#include <esp_task_wdt.h>
 
 #include "DashboardServer.h"
 
@@ -54,30 +55,6 @@ void DashboardServer::loop() {
     server.handleClient();
 }
 
-// New method to serve compressed files
-void DashboardServer::streamCompressedFile(SdFile &fileTarget, const String &contentType, uint32_t originalSize) {
-    const uint32_t compressedSize = fileTarget.fileSize();
-
-    String header = "HTTP/1.1 200 OK\r\n";
-    header += "Content-Type: " + contentType + "\r\n";
-    header += "Content-Length: " + String(compressedSize) + "\r\n";
-    header += "Content-Encoding: gzip\r\n";
-    header += "Cache-Control: public, max-age=31536000\r\n";  // Cache for 1 year
-    header += "Connection: close\r\n";
-    header += "\r\n";
-    server.sendContent(header);
-
-    constexpr uint16_t CHUNK_SIZE = 1024;
-    uint8_t buffer[CHUNK_SIZE];
-
-    while (fileTarget.available()) {
-        if (const int bytesRead = fileTarget.read(buffer, CHUNK_SIZE); bytesRead > 0) {
-            server.sendContent(reinterpret_cast<const char *>(buffer), bytesRead);
-        }
-    }
-}
-
-
 // Helper function to get content type
 String DashboardServer::getContentType(const String &filename) {
     if (filename.endsWith(".html") || filename.endsWith(".htm")) return "text/html";
@@ -98,32 +75,6 @@ String DashboardServer::getContentType(const String &filename) {
     return "application/octet-stream";
 }
 
-// Manually stream file from SdFat to web client
-void DashboardServer::streamFile(SdFile &streamed_file, const String &contentType) {
-    const uint32_t fileSize = streamed_file.fileSize();
-
-
-    String header = "HTTP/1.1 200 OK\r\n";
-    header += "Content-Type: " + contentType + "\r\n";
-    header += "Content-Length: " + String(fileSize) + "\r\n";
-    header += "Connection: close\r\n";
-    header += "\r\n"; // Empty line to end headers
-
-
-    server.sendContent(header);
-
-    constexpr uint16_t CHUNK_SIZE = 1024; // 1KB chunks
-    uint8_t buffer[CHUNK_SIZE];
-
-    size_t totalSent = 0;
-    while (streamed_file.available()) {
-        if (const int bytesRead = streamed_file.read(buffer, CHUNK_SIZE); bytesRead > 0) {
-            server.sendContent(reinterpret_cast<const char *>(buffer), bytesRead);
-            totalSent += bytesRead;
-        }
-    }
-}
-
 const char* DashboardServer::getEncoding() {
     if (server.hasHeader("Accept-Encoding")) {
         const String encoding = server.header("Accept-Encoding");
@@ -136,6 +87,71 @@ const char* DashboardServer::getEncoding() {
     }
     return nullptr;
 }
+
+void DashboardServer::streamFile(SdFile &streamed_file, const String &contentType) {
+    const uint32_t fileSize = streamed_file.fileSize();
+
+    String header = "HTTP/1.1 200 OK\r\n";
+    header += "Content-Type: " + contentType + "\r\n";
+    header += "Content-Length: " + String(fileSize) + "\r\n";
+    header += "Connection: close\r\n";
+    header += "\r\n";
+
+    server.sendContent(header);
+
+    constexpr uint16_t CHUNK_SIZE = 512;  // Reduced chunk size
+    uint8_t buffer[CHUNK_SIZE];
+
+    uint32_t totalSent = 0;
+
+    while (streamed_file.available()) {
+        if (const int bytesRead = streamed_file.read(buffer, CHUNK_SIZE); bytesRead > 0) {
+            server.sendContent(reinterpret_cast<const char *>(buffer), bytesRead);
+            totalSent += bytesRead;
+
+            // Feed watchdog and yield more frequently
+            if (constexpr uint32_t YIELD_INTERVAL = 2048; totalSent % YIELD_INTERVAL < CHUNK_SIZE) {
+                esp_task_wdt_reset();  // Reset watchdog
+                yield();               // Allow other tasks
+                vTaskDelay(pdMS_TO_TICKS(1));
+            }
+        }
+    }
+}
+
+// FIXED: Use fileTarget parameter instead of global file
+void DashboardServer::streamCompressedFile(SdFile &fileTarget, const String &contentType, uint32_t originalSize) {
+    const uint32_t compressedSize = fileTarget.fileSize();
+
+    String header = "HTTP/1.1 200 OK\r\n";
+    header += "Content-Type: " + contentType + "\r\n";
+    header += "Content-Length: " + String(compressedSize) + "\r\n";
+    header += "Content-Encoding: br\r\n";
+    header += "Cache-Control: public, max-age=31536000\r\n";
+    header += "Connection: close\r\n";
+    header += "\r\n";
+
+    server.sendContent(header);
+
+    uint32_t totalSent = 0;
+
+    // FIXED: Use fileTarget instead of file
+    while (fileTarget.available()) {
+        constexpr uint16_t CHUNK_SIZE = 512;
+        uint8_t buffer[CHUNK_SIZE];
+        if (const int bytesRead = fileTarget.read(buffer, CHUNK_SIZE); bytesRead > 0) {
+            server.sendContent(reinterpret_cast<const char*>(buffer), bytesRead);
+            totalSent += bytesRead;
+
+            if (constexpr uint32_t YIELD_INTERVAL = 2048; totalSent % YIELD_INTERVAL < CHUNK_SIZE) {
+                esp_task_wdt_reset();  // Reset watchdog
+                yield();
+                vTaskDelay(pdMS_TO_TICKS(1));
+            }
+        }
+    }
+}
+
 // Update handleFileRequest to serve compressed files
 void DashboardServer::handleFileRequest() {
     String path = server.uri();
@@ -146,37 +162,62 @@ void DashboardServer::handleFileRequest() {
         path = "/web" + path;
     }
 
-
-
     // Try to serve compressed version if browser supports it
     const char* encoding = getEncoding();
 
     // Check for brotli compressed file
     String compressedPath = String(path) + ".br";
     if (encoding != nullptr && strcmp(encoding, "br") == 0 && sd.exists(compressedPath.c_str())) {
-        // Serve brotli compressed
-        // ... similar to gzip but with Content-Encoding: br
+        Serial.println("📦 Serving brotli: " + compressedPath);
         if (!file.open(compressedPath.c_str(), O_READ)) {
             server.send(500, "text/plain", "500: Failed to open compressed file");
             return;
         }
 
         const String contentType = getContentType(path);
+        // Pass the file object correctly
         streamCompressedFile(file, contentType, 0);
         file.close();
         return;
     }
-    compressedPath = String(path) + ".gz";
 
-    // Check if compressed file exists and browser supports gzip
+    // Check for gzip compressed file
+    compressedPath = String(path) + ".gz";
     if (encoding != nullptr && sd.exists(compressedPath.c_str())) {
+        Serial.println("📦 Serving gzip: " + compressedPath);
         if (!file.open(compressedPath.c_str(), O_READ)) {
             server.send(500, "text/plain", "500: Failed to open compressed file");
             return;
         }
 
         const String contentType = getContentType(path);
-        streamCompressedFile(file, contentType, 0);
+        // Use streamFile for gzip (or create separate gzip function)
+        // For now, stream it as regular file but with gzip encoding header
+        String header = "HTTP/1.1 200 OK\r\n";
+        header += "Content-Type: " + contentType + "\r\n";
+        header += "Content-Length: " + String(file.fileSize()) + "\r\n";
+        header += "Content-Encoding: gzip\r\n";
+        header += "Cache-Control: public, max-age=31536000\r\n";
+        header += "Connection: close\r\n";
+        header += "\r\n";
+        server.sendContent(header);
+
+        // Stream file with watchdog feeding
+        constexpr uint16_t CHUNK_SIZE = 512;
+        uint8_t buffer[CHUNK_SIZE];
+        uint32_t totalSent = 0;
+
+        while (file.available()) {
+            if (const int bytesRead = file.read(buffer, CHUNK_SIZE); bytesRead > 0) {
+                server.sendContent(reinterpret_cast<const char*>(buffer), bytesRead);
+                totalSent += bytesRead;
+                if (constexpr uint32_t YIELD_INTERVAL = 2048; totalSent % YIELD_INTERVAL < CHUNK_SIZE) {
+                    esp_task_wdt_reset();
+                    yield();
+                    vTaskDelay(pdMS_TO_TICKS(1));
+                }
+            }
+        }
         file.close();
         return;
     }

@@ -10,6 +10,11 @@
 #include <SdFat.h>
 
 class DashboardServer {
+    static WebServer server;
+    static SdFat sd;
+    static SdFile file;
+    static bool success;
+    static const char* getEncoding();
 public:
     static void setup();
     static void loop();
@@ -19,12 +24,6 @@ public:
     static void streamFile(SdFile &streamed_file, const String &contentType);
     static void streamCompressedFile(SdFile &fileTarget, const String &contentType, uint32_t originalSize);
 
-private:
-    static WebServer server;
-    static SdFat sd;
-    static SdFile file;
-    static bool success;
-    static const char* getEncoding();
 };
 
 #endif //ENLATADORA_IOT_DASHBOARDSERVER_H
