@@ -54,6 +54,30 @@ void DashboardServer::loop() {
     server.handleClient();
 }
 
+// New method to serve compressed files
+void DashboardServer::streamCompressedFile(SdFile &fileTarget, const String &contentType, uint32_t originalSize) {
+    const uint32_t compressedSize = fileTarget.fileSize();
+
+    String header = "HTTP/1.1 200 OK\r\n";
+    header += "Content-Type: " + contentType + "\r\n";
+    header += "Content-Length: " + String(compressedSize) + "\r\n";
+    header += "Content-Encoding: gzip\r\n";
+    header += "Cache-Control: public, max-age=31536000\r\n";  // Cache for 1 year
+    header += "Connection: close\r\n";
+    header += "\r\n";
+    server.sendContent(header);
+
+    constexpr uint16_t CHUNK_SIZE = 1024;
+    uint8_t buffer[CHUNK_SIZE];
+
+    while (fileTarget.available()) {
+        if (const int bytesRead = fileTarget.read(buffer, CHUNK_SIZE); bytesRead > 0) {
+            server.sendContent(reinterpret_cast<const char *>(buffer), bytesRead);
+        }
+    }
+}
+
+
 // Helper function to get content type
 String DashboardServer::getContentType(const String &filename) {
     if (filename.endsWith(".html") || filename.endsWith(".htm")) return "text/html";
@@ -76,65 +100,100 @@ String DashboardServer::getContentType(const String &filename) {
 
 // Manually stream file from SdFat to web client
 void DashboardServer::streamFile(SdFile &streamed_file, const String &contentType) {
-    // Get file size
     const uint32_t fileSize = streamed_file.fileSize();
 
-    // Send headers and start the response
-    // Note: server.send() with empty content will set Content-Length to 0
-    // We need to use a different approach
 
-    // Method 1: Use sendHeader with custom status
     String header = "HTTP/1.1 200 OK\r\n";
     header += "Content-Type: " + contentType + "\r\n";
     header += "Content-Length: " + String(fileSize) + "\r\n";
     header += "Connection: close\r\n";
     header += "\r\n"; // Empty line to end headers
 
-    // Send headers
+
     server.sendContent(header);
 
-    // Stream file in chunks
     constexpr uint16_t CHUNK_SIZE = 1024; // 1KB chunks
     uint8_t buffer[CHUNK_SIZE];
 
     size_t totalSent = 0;
     while (streamed_file.available()) {
-        const int bytesRead = streamed_file.read(buffer, CHUNK_SIZE);
-        if (bytesRead > 0) {
+        if (const int bytesRead = streamed_file.read(buffer, CHUNK_SIZE); bytesRead > 0) {
             server.sendContent(reinterpret_cast<const char *>(buffer), bytesRead);
             totalSent += bytesRead;
         }
     }
 }
 
-// Serve files from SD card
+const char* DashboardServer::getEncoding() {
+    if (server.hasHeader("Accept-Encoding")) {
+        const String encoding = server.header("Accept-Encoding");
+        if (encoding.indexOf("br") != -1) {
+            return "br";
+        }
+        if (encoding.indexOf("gzip") != -1) {
+            return "gzip";
+        }
+    }
+    return nullptr;
+}
+// Update handleFileRequest to serve compressed files
 void DashboardServer::handleFileRequest() {
     String path = server.uri();
 
-    // Default to index.html for root
     if (path == "/" || path == "") {
         path = "/web/index.html";
     } else {
-        path = "/web" + path; // All files are in /web folder
+        path = "/web" + path;
     }
 
-    // Check if file exists
+
+
+    // Try to serve compressed version if browser supports it
+    const char* encoding = getEncoding();
+
+    // Check for brotli compressed file
+    String compressedPath = String(path) + ".br";
+    if (encoding != nullptr && strcmp(encoding, "br") == 0 && sd.exists(compressedPath.c_str())) {
+        // Serve brotli compressed
+        // ... similar to gzip but with Content-Encoding: br
+        if (!file.open(compressedPath.c_str(), O_READ)) {
+            server.send(500, "text/plain", "500: Failed to open compressed file");
+            return;
+        }
+
+        const String contentType = getContentType(path);
+        streamCompressedFile(file, contentType, 0);
+        file.close();
+        return;
+    }
+    compressedPath = String(path) + ".gz";
+
+    // Check if compressed file exists and browser supports gzip
+    if (encoding != nullptr && sd.exists(compressedPath.c_str())) {
+        if (!file.open(compressedPath.c_str(), O_READ)) {
+            server.send(500, "text/plain", "500: Failed to open compressed file");
+            return;
+        }
+
+        const String contentType = getContentType(path);
+        streamCompressedFile(file, contentType, 0);
+        file.close();
+        return;
+    }
+
+    // Fallback to uncompressed file
     if (!sd.exists(path.c_str())) {
-        Serial.println("❌ File not found");
+        Serial.println("❌ File not found: " + path);
         server.send(404, "text/plain", "404: File Not Found");
         return;
     }
 
-    // Open the file
     if (!file.open(path.c_str(), O_READ)) {
-        Serial.println("❌ Failed to open file");
         server.send(500, "text/plain", "500: Failed to open file");
         return;
     }
 
-    // Get content type and serve file
     const String contentType = getContentType(path);
-
     streamFile(file, contentType);
     file.close();
 }

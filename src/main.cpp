@@ -13,7 +13,7 @@ static TaskHandle_t serverTaskHandle;
     while (true) {
         MqttServer::loop();
         DashboardServer::loop();
-        vTaskDelay(pdMS_TO_TICKS(0.1));
+        vTaskDelay(pdMS_TO_TICKS(1));
     }
 }
 
@@ -40,11 +40,12 @@ void setup() {
     }
 
     delay(100);
-    xTaskCreatePinnedToCore(reinterpret_cast<TaskFunction_t>(serverTask), "servers", 1024 * 30, nullptr, 1,
+    xTaskCreatePinnedToCore(reinterpret_cast<TaskFunction_t>(serverTask), "servers", 1024 * 60, nullptr, 0,
                             &serverTaskHandle, 0);
 }
 
 
 void loop() {
     delay(500);
+    vTaskDelay(pdMS_TO_TICKS(1000));
 }
