@@ -7,6 +7,8 @@
 
 #include "MqttServer.h"
 
+#include "SerialQueue.h"
+
 
 WiFiServer MqttServer::tcp_server(1883);
 
@@ -23,10 +25,10 @@ void MqttServer::setup() {
     mqtt.begin();
 
     mqtt.subscribe("home/test/led", [](const char *payload) {
-        Serial.println("Togglings");
+      SerialQueue::enqueueLine("Toglings");
     });
     mqtt.subscribe("#", [](const char *payload) {
-        Serial.printf("Received message: %s\n\r", payload);
+        SerialQueue::enqueueLine( "Received: "+ String(payload));
     });
 }
 

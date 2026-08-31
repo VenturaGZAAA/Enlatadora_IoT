@@ -6,18 +6,22 @@
 #include "MqttServer.h"
 #include <esp_task_wdt.h>
 
+#include "SerialQueue.h"
+
 static TaskHandle_t serverTaskHandle;
 
-#define SERVER_STACK_SIZE (8192 * 8)  // 64KB stack
+#define SERVER_STACK_SIZE (8192 * 8) // 64KB stack
 
-[[noreturn]] static void serverTask() {
+[[noreturn]] static void serverTask()
+{
     // Configure watchdog for ESP32-S3 (new API)
     // Only initialize once - check if already initialized
-    if (esp_task_wdt_status(nullptr) == ESP_ERR_NOT_FOUND) {
+    if (esp_task_wdt_status(nullptr) == ESP_ERR_NOT_FOUND)
+    {
         constexpr esp_task_wdt_config_t twdt_config = {
-            .timeout_ms = 10000,  // 10 second timeout
-            .idle_core_mask = (1 << 0) | (1 << 1),  // Both cores
-            .trigger_panic = true  // Panic on timeout
+            .timeout_ms = 10000,                   // 10 second timeout
+            .idle_core_mask = (1 << 0) | (1 << 1), // Both cores
+            .trigger_panic = true                  // Panic on timeout
         };
         esp_task_wdt_init(&twdt_config);
     }
@@ -28,7 +32,8 @@ static TaskHandle_t serverTaskHandle;
 
     unsigned long lastWatchdogFeed = millis();
 
-    while (true) {
+    while (true)
+    {
         // Handle MQTT
         MqttServer::loop();
 
@@ -36,7 +41,8 @@ static TaskHandle_t serverTaskHandle;
         DashboardServer::loop();
 
         // Feed watchdog every 100ms
-        if (millis() - lastWatchdogFeed > 100) {
+        if (millis() - lastWatchdogFeed > 100)
+        {
             esp_task_wdt_reset();
             lastWatchdogFeed = millis();
         }
@@ -46,24 +52,31 @@ static TaskHandle_t serverTaskHandle;
     }
 }
 
-void setup() {
+void setup()
+{
     Serial.begin(115200);
+    // SerialQueue::init();
+    delay(100);
     // --- Connect to Wi-Fi ---
-    Serial.print("📶 Connecting to Wi-Fi");
+    SerialQueue::enqueueLine("📶 Connecting to Wi-Fi");
     WiFi.begin(ssid, password);
     int attempts = 0;
-    while (WiFi.status() != WL_CONNECTED && attempts < 30) {
+    while (WiFi.status() != WL_CONNECTED && attempts < 30)
+    {
         delay(500);
-        Serial.print(".");
+        SerialQueue::enqueueLine(".");
         attempts++;
     }
 
-    if (WiFi.status() == WL_CONNECTED) {
-        Serial.println("\n✅ WiFi connected!");
-        Serial.print("📡 IP address: ");
-        Serial.println(WiFi.localIP());
-    } else {
-        Serial.println("\n❌ WiFi connection failed!");
+    if (WiFi.status() == WL_CONNECTED)
+    {
+        SerialQueue::enqueueLine("\n✅ WiFi connected!");
+        SerialQueue::enqueueLine("📡 IP address: ");
+        SerialQueue::enqueueLine(WiFi.localIP().toString().c_str());
+    }
+    else
+    {
+        SerialQueue::enqueueLine("\n❌ WiFi connection failed!");
         return;
     }
 
@@ -73,12 +86,14 @@ void setup() {
         "servers",
         SERVER_STACK_SIZE,
         nullptr,
-        1,  // Priority 1 (was 0)
+        1, // Priority 1 (was 0)
         &serverTaskHandle,
-        0   // Core 0
+        0 // Core 0
     );
 }
 
-void loop() {
-    vTaskDelay(pdMS_TO_TICKS(1000));
+void loop()
+{
+    SerialQueue::run();
+    vTaskDelay(pdMS_TO_TICKS(5));
 }

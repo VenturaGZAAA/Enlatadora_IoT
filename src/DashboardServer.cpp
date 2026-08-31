@@ -9,6 +9,8 @@
 
 #include "DashboardServer.h"
 
+#include "SerialQueue.h"
+
 // --- SD Card Pins for ESP32-S3-DevKitM-1 ---
 #define SD_CS   10
 #define SD_MOSI 11
@@ -21,19 +23,19 @@ SdFile DashboardServer::file;
 bool DashboardServer::success = false;
 
 void DashboardServer::setup() {
-    Serial.println("\n=== 🚀 ESP32-S3 Web Server ===");
+    SerialQueue::enqueueLine("\n=== 🚀 ESP32-S3 Web Server ===");
 
     // --- Initialize SD Card with SdFat ---
-    Serial.print("📀 Initializing SD card...");
+    SerialQueue::enqueueLine("📀 Initializing SD card...");
 
     // Configure SPI pins for SdFat
     SPI.begin(SD_SCK, SD_MISO, SD_MOSI, SD_CS);
 
     // Initialize SdFat with slower speed for stability
     if (!sd.begin(SD_CS, SD_SCK_MHZ(4))) {
-        Serial.println(" ❌ Card Mount Failed!");
-        Serial.print("⚠️ Error code: ");
-        Serial.println(sd.card()->errorCode());
+        SerialQueue::enqueueLine(" ❌ Card Mount Failed!");
+        SerialQueue::enqueueLine("⚠️ Error code: ");
+        SerialQueue::enqueueLine(String(sd.card()->errorCode()));
         return;
     }
 
@@ -43,9 +45,9 @@ void DashboardServer::setup() {
     server.onNotFound(handleFileRequest);
 
     server.begin();
-    Serial.println("🌐 HTTP server started on port 80");
-    Serial.println("📍 Open http://" + WiFi.localIP().toString() + " in your browser");
-    Serial.println("\n========================================\n");
+    SerialQueue::enqueueLine("🌐 HTTP server started on port 80");
+    SerialQueue::enqueueLine("📍 Open http://" + WiFi.localIP().toString() + " in your browser");
+    SerialQueue::enqueueLine("\n========================================\n");
 }
 
 void DashboardServer::loop() {
@@ -168,7 +170,7 @@ void DashboardServer::handleFileRequest() {
     // Check for brotli compressed file
     String compressedPath = String(path) + ".br";
     if (encoding != nullptr && strcmp(encoding, "br") == 0 && sd.exists(compressedPath.c_str())) {
-        Serial.println("📦 Serving brotli: " + compressedPath);
+        SerialQueue::enqueueLine("📦 Serving brotli: " + compressedPath);
         if (!file.open(compressedPath.c_str(), O_READ)) {
             server.send(500, "text/plain", "500: Failed to open compressed file");
             return;
@@ -184,7 +186,7 @@ void DashboardServer::handleFileRequest() {
     // Check for gzip compressed file
     compressedPath = String(path) + ".gz";
     if (encoding != nullptr && sd.exists(compressedPath.c_str())) {
-        Serial.println("📦 Serving gzip: " + compressedPath);
+        SerialQueue::enqueueLine("📦 Serving gzip: " + compressedPath);
         if (!file.open(compressedPath.c_str(), O_READ)) {
             server.send(500, "text/plain", "500: Failed to open compressed file");
             return;
@@ -224,7 +226,7 @@ void DashboardServer::handleFileRequest() {
 
     // Fallback to uncompressed file
     if (!sd.exists(path.c_str())) {
-        Serial.println("❌ File not found: " + path);
+        SerialQueue::enqueueLine("❌ File not found: " + path);
         server.send(404, "text/plain", "404: File Not Found");
         return;
     }
