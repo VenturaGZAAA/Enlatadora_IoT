@@ -18,16 +18,16 @@ static TaskHandle_t serverTaskHandle;
 {
     // Configure watchdog for ESP32-S3 (new API)
     // Only initialize once - check if already initialized
-    if (esp_task_wdt_status(nullptr) == ESP_ERR_NOT_FOUND)
-    {
-        constexpr esp_task_wdt_config_t twdt_config = {
-            .timeout_ms = 10000,                   // 10 second timeout
-            .idle_core_mask = (1 << 0) | (1 << 1), // Both cores
-            .trigger_panic = true                  // Panic on timeout
-        };
-        esp_task_wdt_init(&twdt_config);
-    }
-    esp_task_wdt_add(nullptr);
+    // if (esp_task_wdt_status(nullptr) == ESP_ERR_NOT_FOUND)
+    // {
+    //     constexpr esp_task_wdt_config_t twdt_config = {
+    //         .timeout_ms = 10000,                   // 10 second timeout
+    //         .idle_core_mask = (1 << 0) | (1 << 1), // Both cores
+    //         .trigger_panic = true                  // Panic on timeout
+    //     };
+    //     esp_task_wdt_init(&twdt_config);
+    // }
+    // esp_task_wdt_add(nullptr);
 
     MqttServer::setup();
     DashboardServer::setup();

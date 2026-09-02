@@ -18,7 +18,7 @@ PicoWebsocket::Server<WiFiServer> MqttServer::websocket_server(websocket_underly
 
 PicoMQTT::Server MqttServer::mqtt(tcp_server, websocket_server);
 
-long MqttServer::lastTime = 0;
+unsigned long MqttServer::lastTime = 0;
 bool MqttServer::led = false;
 
 void MqttServer::setup() {

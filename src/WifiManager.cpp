@@ -16,13 +16,13 @@ bool WifiManager::connectToNetwork() {
     Serial.println("📶 Connecting to Wi-Fi");
     WiFi.begin(ssid, password);
     int attempts = 0;
-    while (WiFi.status() != WL_CONNECTED && attempts < 30)
+    while (WiFiClass::status() != WL_CONNECTED && attempts < 30)
     {
         delay(500);
         Serial.println(".");
         attempts++;
     }
-    if (WiFi.status() == WL_CONNECTED)
+    if (WiFiClass::status() == WL_CONNECTED)
     {
         Serial.println("\n✅ WiFi connected!");
         Serial.println("📡 IP address: ");

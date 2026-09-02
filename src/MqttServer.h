@@ -14,7 +14,7 @@ class MqttServer {
     static WiFiServer websocket_underlying_server;
     static PicoWebsocket::Server<WiFiServer> websocket_server;
     static PicoMQTT::Server mqtt;
-    static long lastTime;
+    static unsigned long lastTime;
     static bool led;
 
 public:
