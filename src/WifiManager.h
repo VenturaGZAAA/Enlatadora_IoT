@@ -9,9 +9,11 @@
 class WifiManager {
     static bool start_ap;
     static bool sta_connected;
+    static const char *hostname;
 
     static bool connectToNetwork();
     static bool startAccessPoint();
+    static void setupMdns();
 
     public:
     WifiManager() = delete;

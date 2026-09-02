@@ -5,11 +5,23 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <secrets.h>
+#include <ESPmDNS.h>
 // #include <SerialQueue.h>
 #include "WifiManager.h"
 
 bool WifiManager::start_ap = false;
 bool WifiManager::sta_connected = false;
+const char *WifiManager::hostname = "enlatadora-s3";
+
+void WifiManager::setupMdns() {
+    if (!MDNS.begin(hostname)) {
+        Serial.println("MDNS responder not available");
+        return;
+    }
+    MDNS.addService("mqtt", "tcp",1883);
+    Serial.println("MDNS responder started: " + String(hostname) + ".local");
+}
+
 
 bool WifiManager::connectToNetwork() {
     // --- Connect to Wi-Fi ---
@@ -19,14 +31,15 @@ bool WifiManager::connectToNetwork() {
     while (WiFiClass::status() != WL_CONNECTED && attempts < 30)
     {
         delay(500);
-        Serial.println(".");
+        Serial.print(".");
         attempts++;
     }
     if (WiFiClass::status() == WL_CONNECTED)
     {
         Serial.println("\n✅ WiFi connected!");
-        Serial.println("📡 IP address: ");
+        Serial.print("📡 IP address: ");
         Serial.println(WiFi.localIP().toString());
+        setupMdns();
         return true;
     }
     return false;
@@ -46,6 +59,7 @@ bool WifiManager::startAccessPoint() {
         Serial.println(AP_PASSWORD);
         Serial.print("IP address: ");
         Serial.println(WiFi.softAPIP());
+        setupMdns();
         return true;
     }
     Serial.println("AP failed to start");
