@@ -193,8 +193,7 @@ void DashboardServer::handleFileRequest() {
         }
 
         const String contentType = getContentType(path);
-        // Use streamFile for gzip (or create separate gzip function)
-        // For now, stream it as regular file but with gzip encoding header
+       
         String header = "HTTP/1.1 200 OK\r\n";
         header += "Content-Type: " + contentType + "\r\n";
         header += "Content-Length: " + String(file.fileSize()) + "\r\n";

@@ -5,8 +5,10 @@
 #include <PicoMQTT.h>
 #include "MqttServer.h"
 #include <esp_task_wdt.h>
+#include <nvs_flash.h>
 
 #include "SerialQueue.h"
+#include "WifiManager.h"
 
 static TaskHandle_t serverTaskHandle;
 
@@ -54,30 +56,13 @@ static TaskHandle_t serverTaskHandle;
 
 void setup()
 {
+    nvs_flash_init();
     Serial.begin(115200);
     // SerialQueue::init();
     delay(100);
-    // --- Connect to Wi-Fi ---
-    SerialQueue::enqueueLine("📶 Connecting to Wi-Fi");
-    WiFi.begin(ssid, password);
-    int attempts = 0;
-    while (WiFi.status() != WL_CONNECTED && attempts < 30)
-    {
-        delay(500);
-        SerialQueue::enqueueLine(".");
-        attempts++;
-    }
 
-    if (WiFi.status() == WL_CONNECTED)
-    {
-        SerialQueue::enqueueLine("\n✅ WiFi connected!");
-        SerialQueue::enqueueLine("📡 IP address: ");
-        SerialQueue::enqueueLine(WiFi.localIP().toString().c_str());
-    }
-    else
-    {
-        SerialQueue::enqueueLine("\n❌ WiFi connection failed!");
-        return;
+    if (!WifiManager::setup()) {
+        ESP.restart();
     }
 
     delay(100);

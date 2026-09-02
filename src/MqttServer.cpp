@@ -25,10 +25,10 @@ void MqttServer::setup() {
     mqtt.begin();
 
     mqtt.subscribe("home/test/led", [](const char *payload) {
-      SerialQueue::enqueueLine("Toglings");
+        SerialQueue::enqueueLine("You pressed the button!");
     });
-    mqtt.subscribe("#", [](const char *payload) {
-        SerialQueue::enqueueLine( "Received: "+ String(payload));
+    mqtt.subscribe("config/wifi/data", [](const char *payload) {
+        SerialQueue::enqueueLine("Wifi data received: \t" + String(payload));
     });
 }
 
