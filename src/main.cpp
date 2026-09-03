@@ -1,12 +1,10 @@
 #include <WiFi.h>
 #include <SPI.h>
-#include <secrets.h>
 #include <DashboardServer.h>
 #include <PicoMQTT.h>
 #include "MqttServer.h"
 #include <esp_task_wdt.h>
 #include <nvs_flash.h>
-
 #include "SerialQueue.h"
 #include "WifiManager.h"
 
@@ -31,6 +29,8 @@ static TaskHandle_t serverTaskHandle;
 
     MqttServer::setup();
     DashboardServer::setup();
+
+    MqttServer::registerCallback("config/wifi/data",WifiManager::wifiConfigCallback);
 
     unsigned long lastWatchdogFeed = millis();
 

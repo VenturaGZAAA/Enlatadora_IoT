@@ -21,6 +21,7 @@ public:
     MqttServer() = delete;
 
     static void setup();
+    static void registerCallback(const char *topic, void (*callback)(const char *payload));
 
     static void loop();
 };

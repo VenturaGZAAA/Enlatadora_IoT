@@ -5,7 +5,7 @@
 #ifndef ENLATADORAIOT_SECRETS_H
 #define ENLATADORAIOT_SECRETS_H
 // --- Wi-Fi Credentials ---
-auto ssid = "YOUR_WIFI_SSID";
+auto secret_ssid = "YOUR_WIFI_SSID";
 auto password = "YOUR_WIFI_PASSWORD";
 
 #endif //ENLATADORAIOT_SECRETS_H

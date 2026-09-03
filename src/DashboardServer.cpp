@@ -46,7 +46,6 @@ void DashboardServer::setup() {
     server.onNotFound(handleFileRequest);
 
     server.begin();
-    MDNS.addService("http", "tcp",80);
     SerialQueue::enqueueLine("🌐 HTTP server started on port 80");
     SerialQueue::enqueueLine("📍 Open http://" + WiFi.localIP().toString() + " in your browser");
     SerialQueue::enqueueLine("\n========================================\n");

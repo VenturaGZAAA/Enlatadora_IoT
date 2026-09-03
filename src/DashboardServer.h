@@ -15,14 +15,14 @@ class DashboardServer {
     static SdFile file;
     static bool success;
     static const char* getEncoding();
-public:
-    static void setup();
-    static void loop();
     static void handleFileRequest();
     static void handleFavicon();
     static String getContentType(const String &filename);
     static void streamFile(SdFile &streamed_file, const String &contentType);
     static void streamCompressedFile(SdFile &fileTarget, const String &contentType, uint32_t originalSize);
+public:
+    static void setup();
+    static void loop();
 
 };
 
