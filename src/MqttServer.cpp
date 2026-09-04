@@ -4,7 +4,6 @@
 #include <Arduino.h>
 #include <PicoMQTT.h>
 #include <PicoWebsocket.h>
-#include <ArduinoJson.h>
 #include "MqttServer.h"
 
 #include "SerialQueue.h"
@@ -26,12 +25,14 @@ bool MqttServer::led = false;
 void MqttServer::registerCallback(const char *topic, void (*callback)(const char *payload)) {
     mqtt.subscribe(topic, callback);
 }
-
+void MqttServer::publish(const char *topic,const String& payload, const uint8_t qos) {
+    mqtt.publish(topic, payload,qos);
+}
 
 void MqttServer::setup() {
     mqtt.begin();
 
-    mqtt.subscribe("home/test/led", [](const char *payload) {
+    mqtt.subscribe("home/test/led", [](const char *) {
         SerialQueue::enqueueLine("You pressed the button!");
     });
     // mqtt.subscribe("config/wifi/data", wifiConfigCallback);

@@ -17,13 +17,13 @@ class WifiManager {
 
     static bool connectToNetwork();
     static bool startAccessPoint();
-    static void setupMdns();
+    // static void setupMdns();
 
     public:
     WifiManager() = delete;
     static void wifiConfigCallback(const char *payload);
+    static void wifiStateCallback(const char *payload);
     static bool setup();
-    static void setAPMode(bool enable);
     static String getState();
 };
 

@@ -22,6 +22,7 @@ public:
 
     static void setup();
     static void registerCallback(const char *topic, void (*callback)(const char *payload));
+    static void publish(const char *topic, const String& payload,uint8_t qos = 0);
 
     static void loop();
 };
