@@ -114,7 +114,7 @@ void DashboardServer::streamFile(SdFile &streamed_file, const String &contentTyp
 
             // Feed watchdog and yield more frequently
             if (constexpr uint32_t YIELD_INTERVAL = 2048; totalSent % YIELD_INTERVAL < CHUNK_SIZE) {
-                esp_task_wdt_reset();  // Reset watchdog
+                // esp_task_wdt_reset();  // Reset watchdog
                 yield();               // Allow other tasks
                 vTaskDelay(pdMS_TO_TICKS(1));
             }
@@ -147,7 +147,7 @@ void DashboardServer::streamCompressedFile(SdFile &fileTarget, const String &con
             totalSent += bytesRead;
 
             if (constexpr uint32_t YIELD_INTERVAL = 2048; totalSent % YIELD_INTERVAL < CHUNK_SIZE) {
-                esp_task_wdt_reset();  // Reset watchdog
+                // esp_task_wdt_reset();  // Reset watchdog
                 yield();
                 vTaskDelay(pdMS_TO_TICKS(1));
             }
@@ -214,7 +214,7 @@ void DashboardServer::handleFileRequest() {
                 server.sendContent(reinterpret_cast<const char*>(buffer), bytesRead);
                 totalSent += bytesRead;
                 if (constexpr uint32_t YIELD_INTERVAL = 2048; totalSent % YIELD_INTERVAL < CHUNK_SIZE) {
-                    esp_task_wdt_reset();
+                    // esp_task_wdt_reset();
                     yield();
                     vTaskDelay(pdMS_TO_TICKS(1));
                 }
@@ -237,6 +237,7 @@ void DashboardServer::handleFileRequest() {
     }
 
     const String contentType = getContentType(path);
+    SerialQueue::enqueueLine("Streaming uncompressed page");
     streamFile(file, contentType);
     file.close();
 }

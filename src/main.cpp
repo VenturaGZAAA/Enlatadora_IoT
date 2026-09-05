@@ -19,6 +19,11 @@ static TaskHandle_t serverTaskHandle;
 
     MqttServer::registerCallback("config/wifi/data",WifiManager::wifiConfigCallback);
     MqttServer::registerCallback("config/wifi/get",WifiManager::wifiStateCallback);
+    MqttServer::registerCallback("admin/reset/request",[](const char * p) {
+        if (String(p) == "1") {
+            ESP.restart();
+        }
+    });
 
     unsigned long lastWatchdogFeed = millis();
 
@@ -33,7 +38,7 @@ static TaskHandle_t serverTaskHandle;
         // Feed watchdog every 100ms
         if (millis() - lastWatchdogFeed > 100)
         {
-            esp_task_wdt_reset();
+            // esp_task_wdt_reset();
             lastWatchdogFeed = millis();
         }
 

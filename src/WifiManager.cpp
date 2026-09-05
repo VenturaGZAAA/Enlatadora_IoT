@@ -48,6 +48,8 @@ bool WifiManager::connectToNetwork() {
         return true;
     }
     Serial.println("\n❌ Failed to connect to Wi-Fi");
+    Serial.println("SSID: " + ssid);
+    Serial.println("PASS: " + pass);
     return false;
 }
 
