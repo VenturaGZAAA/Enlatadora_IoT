@@ -4,6 +4,8 @@
 #include <Arduino.h>
 #include <PicoMQTT.h>
 #include <PicoWebsocket.h>
+
+#include <utility>
 #include "MqttServer.h"
 
 #include "SerialQueue.h"
@@ -22,7 +24,7 @@ bool MqttServer::led = false;
 
 
 
-void MqttServer::registerCallback(const char *topic, void (*callback)(const char *payload)) {
+void MqttServer::registerCallback(const char *topic, const std::function<void(char *)>& callback) {
     mqtt.subscribe(topic, callback);
 }
 void MqttServer::publish(const char *topic,const String& payload, const uint8_t qos) {

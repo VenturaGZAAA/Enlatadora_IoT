@@ -35,7 +35,7 @@ void DashboardServer::setup() {
     // Initialize SdFat with slower speed for stability
     if (!sd.begin(SD_CS, SD_SCK_MHZ(4))) {
         SerialQueue::enqueueLine(" ❌ Card Mount Failed!");
-        SerialQueue::enqueueLine("⚠️ Error code: ");
+        SerialQueue::enqueue("⚠️ Error code: ");
         SerialQueue::enqueueLine(String(sd.card()->errorCode()));
         return;
     }
@@ -223,7 +223,6 @@ void DashboardServer::handleFileRequest() {
         file.close();
         return;
     }
-
     // Fallback to uncompressed file
     if (!sd.exists(path.c_str())) {
         SerialQueue::enqueueLine("❌ File not found: " + path);

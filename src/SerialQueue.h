@@ -8,6 +8,7 @@
 #include <string>
 class SerialQueue {
     static std::queue<std::string> serialQueue;
+    static std::vector<std::function<void(const char *)>> serialCallbacks;
     static TaskHandle_t task;
     static uint32_t period;
 
@@ -21,12 +22,12 @@ public:
     static void enqueueLine(const std::string &message);
 
     static void enqueue(const String &message);
+    static void enqueueLine(const String &message);
 
     static void enqueue(const char * str);
-
-    static void enqueueLine(const String &message);
     static void enqueueLine(const char * str);
 
+    static void registerCallback(const std::function<void(const char*)>& callback);
     static void run();
     static void init(uint32_t _microsecondsDelay = 10);
 

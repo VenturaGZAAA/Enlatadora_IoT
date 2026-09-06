@@ -54,6 +54,8 @@ void setup()
     // SerialQueue::init();
     delay(100);
 
+    SerialQueue::registerCallback(WifiManager::wifiConfigCallback);
+
     if (!WifiManager::setup()) {
         ESP.restart();
     }

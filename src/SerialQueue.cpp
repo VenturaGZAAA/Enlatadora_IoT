@@ -28,11 +28,16 @@ void SerialQueue::init(const uint32_t _microsecondsDelay) {
 }
 
 void SerialQueue::run() {
-    if (serialQueue.empty()) {
-        return;
+   while (!serialQueue.empty()) {
+       Serial.print(serialQueue.front().data());
+       serialQueue.pop();
+   }
+    if (Serial.available() > 0) {
+        const auto data = Serial.readStringUntil('\r');
+        for (const auto &item : serialCallbacks) {
+            item(data.c_str());
+        }
     }
-    Serial.print(serialQueue.front().data());
-    serialQueue.pop();
 }
 
 void SerialQueue::enqueue(const std::string &message) {
@@ -41,11 +46,11 @@ void SerialQueue::enqueue(const std::string &message) {
 
 void SerialQueue::enqueue(const String &message) {
     // std::string stdStr;
-   serialQueue.push(message.c_str());
+   serialQueue.emplace(message.c_str());
 }
 
 void SerialQueue::enqueue(const char *str) {
-    serialQueue.push(str);
+    serialQueue.emplace(str);
 }
 
 void SerialQueue::enqueueLine(const std::string &message) {
@@ -58,4 +63,8 @@ void SerialQueue::enqueueLine(const String &message) {
 
 void SerialQueue::enqueueLine(const char * str) {
     enqueue(str + String("\r\n"));
+}
+
+void SerialQueue::registerCallback(const std::function<void(const char*)>& callback) {
+    serialCallbacks.push_back(callback);
 }

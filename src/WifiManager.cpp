@@ -15,6 +15,7 @@
 bool WifiManager::start_ap = false;
 bool WifiManager::sta_connected = false;
 const char *WifiManager::hostname = "enlatadora-s3";
+IPAddress WifiManager::server_ip = IPAddress(192, 168, 4, 1);
 
 // void WifiManager::setupMdns()
 // {
@@ -32,7 +33,7 @@ bool WifiManager::connectToNetwork() {
     const auto pass = prefs.getString("pass", secret_password);
 
     // --- Connect to Wi-Fi ---
-    Serial.println("📶 Connecting to Wi-Fi");
+    Serial.print("📶 Connecting to Wi-Fi");
     WiFi.begin(ssid, pass);
     int attempts = 0;
     while (WiFi.status() != WL_CONNECTED && attempts < 30) {
@@ -42,8 +43,9 @@ bool WifiManager::connectToNetwork() {
     }
     if (WiFi.status() == WL_CONNECTED) {
         Serial.println("\n✅ WiFi connected!");
+        server_ip = WiFi.localIP();
         Serial.print("📡 IP address: ");
-        Serial.println(WiFi.localIP().toString());
+        Serial.println(server_ip);
         // setupMdns();
         return true;
     }
@@ -54,11 +56,10 @@ bool WifiManager::connectToNetwork() {
 }
 
 bool WifiManager::startAccessPoint() {
-    const auto localIP = IPAddress(192, 168, 4, 1);
     const auto gateway = IPAddress(192, 168, 4, 1);
     const auto subnet = IPAddress(255, 255, 255, 0);
 
-    WiFi.softAPConfig(localIP, gateway, subnet);
+    WiFi.softAPConfig(server_ip, gateway, subnet);
 
     if (WiFi.softAP(AP_SSID, AP_PASSWORD, 1, 0, 4)) {
         Serial.println("AP started");
@@ -67,7 +68,7 @@ bool WifiManager::startAccessPoint() {
         Serial.print("Password: ");
         Serial.println(AP_PASSWORD);
         Serial.print("IP address: ");
-        Serial.println(WiFi.softAPIP());
+        Serial.println(server_ip);
         // setupMdns();
         return true;
     }
@@ -96,6 +97,9 @@ String WifiManager::getState() {
     String state;
     serializeJson(jsonDoc, state);
     return state;
+}
+IPAddress WifiManager::getServerIP() {
+    return server_ip;
 }
 
 void WifiManager::wifiStateCallback(const char *) {

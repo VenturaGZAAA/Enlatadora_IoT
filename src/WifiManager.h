@@ -14,6 +14,7 @@ class WifiManager {
     static bool start_ap;
     static bool sta_connected;
     static const char *hostname;
+    static IPAddress server_ip;
 
     static bool connectToNetwork();
     static bool startAccessPoint();
@@ -24,6 +25,7 @@ class WifiManager {
     static void wifiConfigCallback(const char *payload);
     static void wifiStateCallback(const char *payload);
     static bool setup();
+    static IPAddress getServerIP();
     static String getState();
 };
 
