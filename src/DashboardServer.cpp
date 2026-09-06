@@ -2,6 +2,8 @@
 // Created by urzu-7 on 8/25/26.
 //
 #include <WiFi.h>
+#define HTTP_HEADER_BUFFER_SIZE 2048   // or 2048
+#define HTTP_HEADER_COUNT 20
 #include <WebServer.h>
 #include <SPI.h>
 #include <SdFat.h>
@@ -20,7 +22,7 @@
 
 WebServer DashboardServer::server = WebServer(80);
 SdFat DashboardServer::sd;
-SdFile DashboardServer::file;
+SdFile DashboardServer::filesy;
 bool DashboardServer::success = false;
 
 void DashboardServer::setup() {
@@ -79,18 +81,28 @@ String DashboardServer::getContentType(const String &filename) {
 }
 
 const char* DashboardServer::getEncoding() {
-    if (server.hasHeader("Accept-Encoding")) {
-        const String encoding = server.header("Accept-Encoding");
-        if (encoding.indexOf("br") != -1) {
-            return "br";
-        }
-        if (encoding.indexOf("gzip") != -1) {
-            return "gzip";
-        }
+    SerialQueue::enqueueLine("Getting encoding...");
+
+    // Diagnostic: print a few common headers
+    String host = server.header("Host");
+    String ua = server.header("User-Agent");
+    String ae = server.header("Accept-Encoding");
+    SerialQueue::enqueueLine("Host: " + host);
+    SerialQueue::enqueueLine("User-Agent: " + ua);
+    SerialQueue::enqueueLine("Accept-Encoding: " + ae);
+
+    // Also check if hasHeader works
+    bool has = server.hasHeader("Accept-Encoding");
+    SerialQueue::enqueueLine("hasHeader result: " + String(has));
+
+    if (!ae.isEmpty()) {
+        if (ae.indexOf("br") != -1) return "br";
+        if (ae.indexOf("gzip") != -1) return "gzip";
     }
+
+    SerialQueue::enqueueLine("Encoding not found");
     return nullptr;
 }
-
 void DashboardServer::streamFile(SdFile &streamed_file, const String &contentType) {
     const uint32_t fileSize = streamed_file.fileSize();
 
@@ -167,20 +179,23 @@ void DashboardServer::handleFileRequest() {
 
     // Try to serve compressed version if browser supports it
     const char* encoding = getEncoding();
+    if (encoding != nullptr) {
+        SerialQueue::enqueueLine("Encoding found");
+    }
 
     // Check for brotli compressed file
     String compressedPath = String(path) + ".br";
     if (encoding != nullptr && strcmp(encoding, "br") == 0 && sd.exists(compressedPath.c_str())) {
         SerialQueue::enqueueLine("📦 Serving brotli: " + compressedPath);
-        if (!file.open(compressedPath.c_str(), O_READ)) {
+        if (!filesy.open(compressedPath.c_str(), O_READ)) {
             server.send(500, "text/plain", "500: Failed to open compressed file");
             return;
         }
 
         const String contentType = getContentType(path);
         // Pass the file object correctly
-        streamCompressedFile(file, contentType, 0);
-        file.close();
+        streamCompressedFile(filesy, contentType, 0);
+        filesy.close();
         return;
     }
 
@@ -188,7 +203,7 @@ void DashboardServer::handleFileRequest() {
     compressedPath = String(path) + ".gz";
     if (encoding != nullptr && sd.exists(compressedPath.c_str())) {
         SerialQueue::enqueueLine("📦 Serving gzip: " + compressedPath);
-        if (!file.open(compressedPath.c_str(), O_READ)) {
+        if (!filesy.open(compressedPath.c_str(), O_READ)) {
             server.send(500, "text/plain", "500: Failed to open compressed file");
             return;
         }
@@ -197,7 +212,7 @@ void DashboardServer::handleFileRequest() {
        
         String header = "HTTP/1.1 200 OK\r\n";
         header += "Content-Type: " + contentType + "\r\n";
-        header += "Content-Length: " + String(file.fileSize()) + "\r\n";
+        header += "Content-Length: " + String(filesy.fileSize()) + "\r\n";
         header += "Content-Encoding: gzip\r\n";
         header += "Cache-Control: public, max-age=31536000\r\n";
         header += "Connection: close\r\n";
@@ -209,8 +224,8 @@ void DashboardServer::handleFileRequest() {
         uint8_t buffer[CHUNK_SIZE];
         uint32_t totalSent = 0;
 
-        while (file.available()) {
-            if (const int bytesRead = file.read(buffer, CHUNK_SIZE); bytesRead > 0) {
+        while (filesy.available()) {
+            if (const int bytesRead = filesy.read(buffer, CHUNK_SIZE); bytesRead > 0) {
                 server.sendContent(reinterpret_cast<const char*>(buffer), bytesRead);
                 totalSent += bytesRead;
                 if (constexpr uint32_t YIELD_INTERVAL = 2048; totalSent % YIELD_INTERVAL < CHUNK_SIZE) {
@@ -220,7 +235,7 @@ void DashboardServer::handleFileRequest() {
                 }
             }
         }
-        file.close();
+        filesy.close();
         return;
     }
     // Fallback to uncompressed file
@@ -230,15 +245,15 @@ void DashboardServer::handleFileRequest() {
         return;
     }
 
-    if (!file.open(path.c_str(), O_READ)) {
+    if (!filesy.open(path.c_str(), O_READ)) {
         server.send(500, "text/plain", "500: Failed to open file");
         return;
     }
 
     const String contentType = getContentType(path);
     SerialQueue::enqueueLine("Streaming uncompressed page");
-    streamFile(file, contentType);
-    file.close();
+    streamFile(filesy, contentType);
+    filesy.close();
 }
 
 // Handle favicon.ico requests (optional, to avoid 404s)

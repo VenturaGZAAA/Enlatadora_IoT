@@ -27,6 +27,7 @@ static TaskHandle_t serverTaskHandle;
 
     unsigned long lastWatchdogFeed = millis();
 
+
     while (true)
     {
         // Handle MQTT
@@ -51,12 +52,13 @@ void setup()
 {
     nvs_flash_init();
     Serial.begin(115200);
-    // SerialQueue::init();
+    SerialQueue::init();
     delay(100);
 
     SerialQueue::registerCallback(WifiManager::wifiConfigCallback);
 
     if (!WifiManager::setup()) {
+        Serial.println("Failed to setup WiFi");
         ESP.restart();
     }
 
@@ -66,14 +68,13 @@ void setup()
         "servers",
         SERVER_STACK_SIZE,
         nullptr,
-        1, // Priority 1 (was 0)
+        1,
         &serverTaskHandle,
-        0 // Core 0
+        0
     );
 }
 
 void loop()
 {
-    SerialQueue::run();
-    vTaskDelay(pdMS_TO_TICKS(5));
+    vTaskDelay(pdMS_TO_TICKS(500));
 }

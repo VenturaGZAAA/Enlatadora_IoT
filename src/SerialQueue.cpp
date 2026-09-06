@@ -6,11 +6,12 @@
 
 #include <string>
 
-std::queue<std::string> SerialQueue::serialQueue = std::queue<std::string>();
+// std::queue<std::string> SerialQueue::serialQueue = std::queue<std::string>();
+// std::vector<std::function<void(const char*)>> SerialQueue::serialCallbacks = std::vector<std::function<void(const char*)>>();
 
-TaskHandle_t SerialQueue::task;
+// TaskHandle_t SerialQueue::task;
 
-uint32_t SerialQueue::period = 10;
+// uint32_t SerialQueue::period = 10;
 
 void SerialQueue::init(const uint32_t _microsecondsDelay) {
     period = _microsecondsDelay;

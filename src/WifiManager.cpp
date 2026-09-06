@@ -110,7 +110,6 @@ void WifiManager::wifiConfigCallback(const char *payload) {
     SerialQueue::enqueueLine("Wifi data received: \t" + String(payload));
     JsonDocument doc;
     if (deserializeJson(doc, payload)) {
-        SerialQueue::enqueueLine("Failed to parse JSON payload");
         return;
     }
 
@@ -127,7 +126,7 @@ void WifiManager::wifiConfigCallback(const char *payload) {
     }
 
     if (!doc["ssid"].is<const char *>() || !doc["pass"].is<const char *>()) {
-        SerialQueue::enqueueLine("Missing 'ssid' or 'pass' in JSON payload");
+        // SerialQueue::enqueueLine("Missing 'ssid' or 'pass' in JSON payload");
         prefs.end();
         return;
     }
@@ -146,3 +145,6 @@ void WifiManager::wifiConfigCallback(const char *payload) {
     SerialQueue::enqueueLine("WiFi credentials overwritten");
     prefs.end();
 }
+
+
+

@@ -7,10 +7,10 @@
 #include <queue>
 #include <string>
 class SerialQueue {
-    static std::queue<std::string> serialQueue;
-    static std::vector<std::function<void(const char *)>> serialCallbacks;
-    static TaskHandle_t task;
-    static uint32_t period;
+    static inline std::queue<std::string> serialQueue;
+    static inline std::vector<std::function<void(const char *)>> serialCallbacks;
+    static inline TaskHandle_t task;
+    static inline uint32_t period = 10;
 
     [[noreturn]] static void loop();
 
