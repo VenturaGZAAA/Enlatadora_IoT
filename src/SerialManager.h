@@ -6,7 +6,7 @@
 #define ENLATADORA_IOT_SERIALQUEUE_H
 #include <queue>
 #include <string>
-class SerialQueue {
+class SerialManager {
     static inline std::queue<std::string> serialQueue;
     static inline std::vector<std::function<void(const char *)>> serialCallbacks;
     static inline TaskHandle_t task;
@@ -15,7 +15,7 @@ class SerialQueue {
     [[noreturn]] static void loop();
 
 public:
-    SerialQueue() = delete;
+    SerialManager() = delete;
 
     static void enqueue(const std::string &message);
 

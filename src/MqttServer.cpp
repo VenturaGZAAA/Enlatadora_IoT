@@ -8,7 +8,7 @@
 #include <utility>
 #include "MqttServer.h"
 
-#include "SerialQueue.h"
+#include "SerialManager.h"
 
 
 WiFiServer MqttServer::tcp_server(1883);
@@ -35,7 +35,7 @@ void MqttServer::setup() {
     mqtt.begin();
 
     mqtt.subscribe("home/test/led", [](const char *) {
-        SerialQueue::enqueueLine("You pressed the button!");
+        SerialManager::enqueueLine("You pressed the button!");
     });
     // mqtt.subscribe("config/wifi/data", wifiConfigCallback);
 }

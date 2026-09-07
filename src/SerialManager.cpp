@@ -2,7 +2,7 @@
 // Created by urzu-7 on 8/31/26.
 //
 #include <Arduino.h>
-#include "SerialQueue.h"
+#include "SerialManager.h"
 
 #include <string>
 
@@ -13,22 +13,21 @@
 
 // uint32_t SerialQueue::period = 10;
 
-void SerialQueue::init(const uint32_t _microsecondsDelay) {
+void SerialManager::init(const uint32_t _microsecondsDelay) {
     period = _microsecondsDelay;
     Serial.println("\n=== Serial Queue Initializing ===");
     xTaskCreate(reinterpret_cast<TaskFunction_t>(loop), "SerialQueue", 2048, nullptr, 5, &task);
-    Serial.println("Whaaaaat");
     enqueueLine("=== Serial Queue Initialized ===");
 }
 
-[[noreturn]] void SerialQueue::loop() {
+[[noreturn]] void SerialManager::loop() {
     while (true) {
         run();
         vTaskDelay(pdMS_TO_TICKS(period));
     }
 }
 
-void SerialQueue::run() {
+void SerialManager::run() {
    while (!serialQueue.empty()) {
        Serial.print(serialQueue.front().data());
        serialQueue.pop();
@@ -41,31 +40,31 @@ void SerialQueue::run() {
     }
 }
 
-void SerialQueue::enqueue(const std::string &message) {
+void SerialManager::enqueue(const std::string &message) {
     serialQueue.push(message);
 }
 
-void SerialQueue::enqueue(const String &message) {
+void SerialManager::enqueue(const String &message) {
     // std::string stdStr;
    serialQueue.emplace(message.c_str());
 }
 
-void SerialQueue::enqueue(const char *str) {
+void SerialManager::enqueue(const char *str) {
     serialQueue.emplace(str);
 }
 
-void SerialQueue::enqueueLine(const std::string &message) {
+void SerialManager::enqueueLine(const std::string &message) {
     enqueue(message + "\r\n");
 }
 
-void SerialQueue::enqueueLine(const String &message) {
+void SerialManager::enqueueLine(const String &message) {
     enqueue(message + "\r\n");
 }
 
-void SerialQueue::enqueueLine(const char * str) {
+void SerialManager::enqueueLine(const char * str) {
     enqueue(str + String("\r\n"));
 }
 
-void SerialQueue::registerCallback(const std::function<void(const char*)>& callback) {
+void SerialManager::registerCallback(const std::function<void(const char*)>& callback) {
     serialCallbacks.push_back(callback);
 }

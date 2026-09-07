@@ -7,7 +7,7 @@
 #include <secrets.h>
 // #include <ESPmDNS.h>
 #include <ArduinoJson.h>
-#include <SerialQueue.h>
+#include <SerialManager.h>
 #include "WifiManager.h"
 
 #include "MqttServer.h"
@@ -107,7 +107,7 @@ void WifiManager::wifiStateCallback(const char *) {
 }
 
 void WifiManager::wifiConfigCallback(const char *payload) {
-    SerialQueue::enqueueLine("Wifi data received: \t" + String(payload));
+    SerialManager::enqueueLine("Wifi data received: \t" + String(payload));
     JsonDocument doc;
     if (deserializeJson(doc, payload)) {
         return;
@@ -118,7 +118,7 @@ void WifiManager::wifiConfigCallback(const char *payload) {
         start_ap = doc["start_ap"];
         prefs.putBool("start_ap", start_ap);
         const auto mode = start_ap ? "AP" : "STA";
-        SerialQueue::enqueueLine("WiFi starter mode set to: " + String(mode));
+        SerialManager::enqueueLine("WiFi starter mode set to: " + String(mode));
         if (start_ap) {
             prefs.end();
             return;
@@ -135,14 +135,14 @@ void WifiManager::wifiConfigCallback(const char *payload) {
     const char *pass = doc["pass"];
 
     if (strlen(ssid) == 0) {
-        SerialQueue::enqueueLine("SSID is empty");
+        SerialManager::enqueueLine("SSID is empty");
         prefs.end();
         return;
     }
 
     prefs.putString("ssid", ssid);
     prefs.putString("pass", pass);
-    SerialQueue::enqueueLine("WiFi credentials overwritten");
+    SerialManager::enqueueLine("WiFi credentials overwritten");
     prefs.end();
 }
 

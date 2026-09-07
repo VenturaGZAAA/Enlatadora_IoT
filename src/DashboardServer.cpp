@@ -1,18 +1,7 @@
-//
-// Created by urzu-7 on 8/25/26.
-//
-#include <WiFi.h>
-#define HTTP_HEADER_BUFFER_SIZE 2048   // or 2048
-#define HTTP_HEADER_COUNT 20
-#include <WebServer.h>
-#include <SPI.h>
-#include <SdFat.h>
-#include <esp_task_wdt.h>
-#include <ESPmDNS.h>
-
 #include "DashboardServer.h"
-
-#include "SerialQueue.h"
+#include "SerialManager.h"
+#include <SPI.h>
+#include <algorithm>   // for std::min
 
 // --- SD Card Pins for ESP32-S3-DevKitM-1 ---
 #define SD_CS   10
@@ -20,47 +9,179 @@
 #define SD_MISO 13
 #define SD_SCK  12
 
-WebServer DashboardServer::server = WebServer(80);
+// Static definitions
+AsyncWebServer DashboardServer::server(80);
 SdFat DashboardServer::sd;
-SdFile DashboardServer::filesy;
-bool DashboardServer::success = false;
+// We no longer use a global SdFile – each request gets its own.
 
+namespace {
+    // ------------------------------------------------------------------
+    // Custom response that streams from an SdFat file.
+    // Takes ownership of the SdFile pointer.
+    class SdFileResponse : public AsyncWebServerResponse {
+    public:
+        SdFileResponse(SdFile *file, const String &contentType, const size_t contentLength = 0,
+                       const String &contentEncoding = "")
+            : _file(file), _contentLength(contentLength),
+              _contentEncoding(contentEncoding), _sent(0), _chunkSize(512) {
+            _code = 200;
+            _contentType = contentType;
+
+            // Add standard headers using addHeader()
+            addHeader("Content-Type", contentType);
+            if (contentLength > 0) {
+                addHeader("Content-Length", String(contentLength));
+            } else {
+                addHeader("Transfer-Encoding", "chunked");
+            }
+            if (!contentEncoding.isEmpty()) {
+                addHeader("Content-Encoding", contentEncoding);
+                addHeader("Cache-Control", "public, max-age=31536000");
+            }
+            addHeader("Connection", "close");
+        }
+
+        ~SdFileResponse() override {
+            if (_file) {
+                _file->close();
+                delete _file;
+            }
+        }
+
+        [[nodiscard]] bool _sourceValid() const override {
+            return _file != nullptr && _file->isOpen();
+        }
+
+        size_t _fillBuffer(uint8_t *data, const size_t maxLen) {
+            if (!_file || !_file->isOpen() || !_file->available()) return 0;
+
+            // Read in chunks, respecting content length if known
+            size_t toRead = std::min(maxLen, _chunkSize);
+            if (_contentLength > 0) {
+                if (const size_t remaining = _contentLength - _sent; toRead > remaining) toRead = remaining;
+            }
+
+            if (const int bytesRead = _file->read(data, toRead); bytesRead > 0) {
+                _sent += bytesRead;
+                return bytesRead;
+            }
+            return 0;
+        }
+
+        size_t _ack(AsyncWebServerRequest *request, const size_t len, uint32_t time) override {
+            // Optional: feed watchdog or yield here if needed
+            return len;
+        }
+
+    private:
+        SdFile *_file;
+        size_t _contentLength;
+        String _contentEncoding;
+        size_t _sent;
+        const size_t _chunkSize;
+    };
+}
+
+// ------------------------------------------------------------------
+// Setup
 void DashboardServer::setup() {
-    SerialQueue::enqueueLine("\n=== 🚀 ESP32-S3 Web Server ===");
+    SerialManager::enqueueLine("\n=== 🚀 ESP32-S3 Web Server ===");
 
-    // --- Initialize SD Card with SdFat ---
-    SerialQueue::enqueueLine("📀 Initializing SD card...");
-
-    // Configure SPI pins for SdFat
+    // Initialize SD card
+    SerialManager::enqueueLine("📀 Initializing SD card...");
     SPI.begin(SD_SCK, SD_MISO, SD_MOSI, SD_CS);
-
-    // Initialize SdFat with slower speed for stability
     if (!sd.begin(SD_CS, SD_SCK_MHZ(4))) {
-        SerialQueue::enqueueLine(" ❌ Card Mount Failed!");
-        SerialQueue::enqueue("⚠️ Error code: ");
-        SerialQueue::enqueueLine(String(sd.card()->errorCode()));
+        SerialManager::enqueueLine(" ❌ Card Mount Failed!");
         return;
     }
+    SerialManager::enqueueLine("✅ SD card mounted");
 
-    success = true;
-    // --- Configure Web Server ---
-    server.on("/favicon.ico", handleFavicon);
+    // Configure routes
+    server.on("/favicon.ico", HTTP_GET, handleFavicon);
     server.onNotFound(handleFileRequest);
 
+    // Start server
     server.begin();
-    SerialQueue::enqueueLine("🌐 HTTP server started on port 80");
-    SerialQueue::enqueueLine("📍 Open http://" + WiFi.localIP().toString() + " in your browser");
-    SerialQueue::enqueueLine("\n========================================\n");
+    SerialManager::enqueueLine("🌐 HTTP server started on port 80");
+    SerialManager::enqueueLine("📍 Open http://" + WiFi.localIP().toString() + " in your browser");
+    SerialManager::enqueueLine("\n========================================\n");
 }
 
-void DashboardServer::loop() {
-    if (!success) {
+// ------------------------------------------------------------------
+// Handlers
+void DashboardServer::handleFileRequest(AsyncWebServerRequest *request) {
+    String path = request->url();
+    if (path == "/" || path == "") {
+        path = "/web/index.html";
+    } else {
+        path = "/web" + path;
+    }
+
+    SerialManager::enqueueLine("Path: " + path);
+
+    // Try compressed versions based on Accept-Encoding
+    const char* encoding = getEncoding(request);
+    const bool hasEncoding = (encoding != nullptr);
+
+
+    // --- Brotli ---
+    String compressedPath = path + ".br";
+    if (hasEncoding && strcmp(encoding, "br") == 0 && sd.exists(compressedPath.c_str())) {
+        SerialManager::enqueueLine("Serving brotli: " + compressedPath);
+        auto *filePtr = new SdFile();
+        if (!filePtr->open(compressedPath.c_str(), O_READ)) {
+            delete filePtr;
+            request->send(500, "text/plain", "Failed to open compressed file");
+            return;
+        }
+        const String contentType = getContentType(path);
+        auto *response = new SdFileResponse(filePtr, contentType, filePtr->fileSize(), "br");
+        request->send(response);
         return;
     }
-    server.handleClient();
+
+
+    // --- Gzip ---
+    compressedPath = path + ".gz";
+    if (hasEncoding && sd.exists(compressedPath.c_str())) {
+        SerialManager::enqueueLine("Serving gzip: " + compressedPath);
+        auto *filePtr = new SdFile();
+        if (!filePtr->open(compressedPath.c_str(), O_READ)) {
+            delete filePtr;
+            request->send(500, "text/plain", "Failed to open compressed file");
+            return;
+        }
+        const String contentType = getContentType(path);
+        auto *response = new SdFileResponse(filePtr, contentType, filePtr->fileSize(), "gzip");
+        request->send(response);
+        return;
+    }
+
+    SerialManager::enqueueLine("Falling back to uncompressed");
+
+    // --- Fallback: uncompressed ---
+    if (!sd.exists(path.c_str())) {
+        request->send(404, "text/plain", "404: File Not Found");
+        return;
+    }
+    auto *filePtr = new SdFile();
+    if (!filePtr->open(path.c_str(), O_READ)) {
+        delete filePtr;
+        request->send(500, "text/plain", "Failed to open file");
+        return;
+    }
+
+    const String contentType = getContentType(path);
+    auto *response = new SdFileResponse(filePtr, contentType, filePtr->fileSize());
+    request->send(response);
 }
 
-// Helper function to get content type
+void DashboardServer::handleFavicon(AsyncWebServerRequest *request) {
+    request->send(204);   // No content
+}
+
+// ------------------------------------------------------------------
+// Helpers
 String DashboardServer::getContentType(const String &filename) {
     if (filename.endsWith(".html") || filename.endsWith(".htm")) return "text/html";
     if (filename.endsWith(".css")) return "text/css";
@@ -80,183 +201,13 @@ String DashboardServer::getContentType(const String &filename) {
     return "application/octet-stream";
 }
 
-const char* DashboardServer::getEncoding() {
-    SerialQueue::enqueueLine("Getting encoding...");
+const char* DashboardServer::getEncoding(const AsyncWebServerRequest *request) {
+    auto *header = request->getHeader("Accept-Encoding");
+    if (!header) return nullptr;
 
-    // Diagnostic: print a few common headers
-    String host = server.header("Host");
-    String ua = server.header("User-Agent");
-    String ae = server.header("Accept-Encoding");
-    SerialQueue::enqueueLine("Host: " + host);
-    SerialQueue::enqueueLine("User-Agent: " + ua);
-    SerialQueue::enqueueLine("Accept-Encoding: " + ae);
-
-    // Also check if hasHeader works
-    bool has = server.hasHeader("Accept-Encoding");
-    SerialQueue::enqueueLine("hasHeader result: " + String(has));
-
-    if (!ae.isEmpty()) {
-        if (ae.indexOf("br") != -1) return "br";
-        if (ae.indexOf("gzip") != -1) return "gzip";
-    }
-
-    SerialQueue::enqueueLine("Encoding not found");
+    const String value = header->value();
+    SerialManager::enqueueLine("Encoding: " + value);
+    if (value.indexOf("br") != -1) return "br";
+    if (value.indexOf("gzip") != -1) return "gzip";
     return nullptr;
-}
-void DashboardServer::streamFile(SdFile &streamed_file, const String &contentType) {
-    const uint32_t fileSize = streamed_file.fileSize();
-
-    String header = "HTTP/1.1 200 OK\r\n";
-    header += "Content-Type: " + contentType + "\r\n";
-    header += "Content-Length: " + String(fileSize) + "\r\n";
-    header += "Connection: close\r\n";
-    header += "\r\n";
-
-    server.sendContent(header);
-
-    constexpr uint16_t CHUNK_SIZE = 512;  // Reduced chunk size
-    uint8_t buffer[CHUNK_SIZE];
-
-    uint32_t totalSent = 0;
-
-    while (streamed_file.available()) {
-        if (const int bytesRead = streamed_file.read(buffer, CHUNK_SIZE); bytesRead > 0) {
-            server.sendContent(reinterpret_cast<const char *>(buffer), bytesRead);
-            totalSent += bytesRead;
-
-            // Feed watchdog and yield more frequently
-            if (constexpr uint32_t YIELD_INTERVAL = 2048; totalSent % YIELD_INTERVAL < CHUNK_SIZE) {
-                // esp_task_wdt_reset();  // Reset watchdog
-                yield();               // Allow other tasks
-                vTaskDelay(pdMS_TO_TICKS(1));
-            }
-        }
-    }
-}
-
-// FIXED: Use fileTarget parameter instead of global file
-void DashboardServer::streamCompressedFile(SdFile &fileTarget, const String &contentType, uint32_t originalSize) {
-    const uint32_t compressedSize = fileTarget.fileSize();
-
-    String header = "HTTP/1.1 200 OK\r\n";
-    header += "Content-Type: " + contentType + "\r\n";
-    header += "Content-Length: " + String(compressedSize) + "\r\n";
-    header += "Content-Encoding: br\r\n";
-    header += "Cache-Control: public, max-age=31536000\r\n";
-    header += "Connection: close\r\n";
-    header += "\r\n";
-
-    server.sendContent(header);
-
-    uint32_t totalSent = 0;
-
-    // FIXED: Use fileTarget instead of file
-    while (fileTarget.available()) {
-        constexpr uint16_t CHUNK_SIZE = 512;
-        uint8_t buffer[CHUNK_SIZE];
-        if (const int bytesRead = fileTarget.read(buffer, CHUNK_SIZE); bytesRead > 0) {
-            server.sendContent(reinterpret_cast<const char*>(buffer), bytesRead);
-            totalSent += bytesRead;
-
-            if (constexpr uint32_t YIELD_INTERVAL = 2048; totalSent % YIELD_INTERVAL < CHUNK_SIZE) {
-                // esp_task_wdt_reset();  // Reset watchdog
-                yield();
-                vTaskDelay(pdMS_TO_TICKS(1));
-            }
-        }
-    }
-}
-
-// Update handleFileRequest to serve compressed files
-void DashboardServer::handleFileRequest() {
-    String path = server.uri();
-
-    if (path == "/" || path == "") {
-        path = "/web/index.html";
-    } else {
-        path = "/web" + path;
-    }
-
-    // Try to serve compressed version if browser supports it
-    const char* encoding = getEncoding();
-    if (encoding != nullptr) {
-        SerialQueue::enqueueLine("Encoding found");
-    }
-
-    // Check for brotli compressed file
-    String compressedPath = String(path) + ".br";
-    if (encoding != nullptr && strcmp(encoding, "br") == 0 && sd.exists(compressedPath.c_str())) {
-        SerialQueue::enqueueLine("📦 Serving brotli: " + compressedPath);
-        if (!filesy.open(compressedPath.c_str(), O_READ)) {
-            server.send(500, "text/plain", "500: Failed to open compressed file");
-            return;
-        }
-
-        const String contentType = getContentType(path);
-        // Pass the file object correctly
-        streamCompressedFile(filesy, contentType, 0);
-        filesy.close();
-        return;
-    }
-
-    // Check for gzip compressed file
-    compressedPath = String(path) + ".gz";
-    if (encoding != nullptr && sd.exists(compressedPath.c_str())) {
-        SerialQueue::enqueueLine("📦 Serving gzip: " + compressedPath);
-        if (!filesy.open(compressedPath.c_str(), O_READ)) {
-            server.send(500, "text/plain", "500: Failed to open compressed file");
-            return;
-        }
-
-        const String contentType = getContentType(path);
-       
-        String header = "HTTP/1.1 200 OK\r\n";
-        header += "Content-Type: " + contentType + "\r\n";
-        header += "Content-Length: " + String(filesy.fileSize()) + "\r\n";
-        header += "Content-Encoding: gzip\r\n";
-        header += "Cache-Control: public, max-age=31536000\r\n";
-        header += "Connection: close\r\n";
-        header += "\r\n";
-        server.sendContent(header);
-
-        // Stream file with watchdog feeding
-        constexpr uint16_t CHUNK_SIZE = 512;
-        uint8_t buffer[CHUNK_SIZE];
-        uint32_t totalSent = 0;
-
-        while (filesy.available()) {
-            if (const int bytesRead = filesy.read(buffer, CHUNK_SIZE); bytesRead > 0) {
-                server.sendContent(reinterpret_cast<const char*>(buffer), bytesRead);
-                totalSent += bytesRead;
-                if (constexpr uint32_t YIELD_INTERVAL = 2048; totalSent % YIELD_INTERVAL < CHUNK_SIZE) {
-                    // esp_task_wdt_reset();
-                    yield();
-                    vTaskDelay(pdMS_TO_TICKS(1));
-                }
-            }
-        }
-        filesy.close();
-        return;
-    }
-    // Fallback to uncompressed file
-    if (!sd.exists(path.c_str())) {
-        SerialQueue::enqueueLine("❌ File not found: " + path);
-        server.send(404, "text/plain", "404: File Not Found");
-        return;
-    }
-
-    if (!filesy.open(path.c_str(), O_READ)) {
-        server.send(500, "text/plain", "500: Failed to open file");
-        return;
-    }
-
-    const String contentType = getContentType(path);
-    SerialQueue::enqueueLine("Streaming uncompressed page");
-    streamFile(filesy, contentType);
-    filesy.close();
-}
-
-// Handle favicon.ico requests (optional, to avoid 404s)
-void DashboardServer::handleFavicon() {
-    server.send(204, "text/plain", ""); // No content
 }

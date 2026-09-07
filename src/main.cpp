@@ -5,12 +5,12 @@
 #include "MqttServer.h"
 #include <esp_task_wdt.h>
 #include <nvs_flash.h>
-#include "SerialQueue.h"
+#include "SerialManager.h"
 #include "WifiManager.h"
 
 static TaskHandle_t serverTaskHandle;
 
-#define SERVER_STACK_SIZE (8192 * 8) // 64KB stack
+#define SERVER_STACK_SIZE (8192 * 2)
 
 [[noreturn]] static void serverTask()
 {
@@ -33,9 +33,6 @@ static TaskHandle_t serverTaskHandle;
         // Handle MQTT
         MqttServer::loop();
 
-        // Handle HTTP server
-        DashboardServer::loop();
-
         // Feed watchdog every 100ms
         if (millis() - lastWatchdogFeed > 100)
         {
@@ -52,10 +49,10 @@ void setup()
 {
     nvs_flash_init();
     Serial.begin(115200);
-    SerialQueue::init();
+    SerialManager::init();
     delay(100);
 
-    SerialQueue::registerCallback(WifiManager::wifiConfigCallback);
+    SerialManager::registerCallback(WifiManager::wifiConfigCallback);
 
     if (!WifiManager::setup()) {
         Serial.println("Failed to setup WiFi");
@@ -63,6 +60,8 @@ void setup()
     }
 
     delay(100);
+
+
     xTaskCreatePinnedToCore(
         reinterpret_cast<TaskFunction_t>(serverTask),
         "servers",
