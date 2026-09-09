@@ -15,7 +15,7 @@
 bool WifiManager::start_ap = false;
 bool WifiManager::sta_connected = false;
 const char *WifiManager::hostname = "enlatadora-s3";
-IPAddress WifiManager::server_ip = IPAddress(192, 168, 4, 1);
+IPAddress WifiManager::server_ip = IPAddress(192, 168, 4, 10);
 
 // void WifiManager::setupMdns()
 // {
@@ -36,12 +36,12 @@ bool WifiManager::connectToNetwork() {
     Serial.print("📶 Connecting to Wi-Fi");
     WiFi.begin(ssid, pass);
     int attempts = 0;
-    while (WiFi.status() != WL_CONNECTED && attempts < 30) {
+    while (WiFiClass::status() != WL_CONNECTED && attempts < 30) {
         delay(500);
         Serial.print(".");
         attempts++;
     }
-    if (WiFi.status() == WL_CONNECTED) {
+    if (WiFiClass::status() == WL_CONNECTED) {
         Serial.println("\n✅ WiFi connected!");
         server_ip = WiFi.localIP();
         Serial.print("📡 IP address: ");
@@ -52,6 +52,7 @@ bool WifiManager::connectToNetwork() {
     Serial.println("\n❌ Failed to connect to Wi-Fi");
     Serial.println("SSID: " + ssid);
     Serial.println("PASS: " + pass);
+    WiFi.disconnect();
     return false;
 }
 

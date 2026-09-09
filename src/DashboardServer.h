@@ -8,7 +8,6 @@
 class DashboardServer {
 public:
     static void setup();
-    // No loop() needed
 
 private:
     static AsyncWebServer server;
