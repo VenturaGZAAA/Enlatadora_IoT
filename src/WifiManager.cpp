@@ -36,12 +36,12 @@ bool WifiManager::connectToNetwork() {
     Serial.print("📶 Connecting to Wi-Fi");
     WiFi.begin(ssid, pass);
     int attempts = 0;
-    while (WiFiClass::status() != WL_CONNECTED && attempts < 30) {
+    while (WiFi.status() != WL_CONNECTED && attempts < 30) {
         delay(500);
         Serial.print(".");
         attempts++;
     }
-    if (WiFiClass::status() == WL_CONNECTED) {
+    if (WiFi.status() == WL_CONNECTED) {
         Serial.println("\n✅ WiFi connected!");
         server_ip = WiFi.localIP();
         Serial.print("📡 IP address: ");

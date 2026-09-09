@@ -40,30 +40,57 @@ void DashboardServer::setup() {
     SerialManager::enqueueLine("\n========================================\n");
 }
 
-// ------------------------------------------------------------------
-// Handlers
 void DashboardServer::handleFileRequest(AsyncWebServerRequest *request) {
+    // 1. Determine the base file path (without compression suffix)
     String path = request->url();
     if (path == "/" || path == "") {
         path = "/web/index.html";
     } else {
         path = "/web" + path;
     }
-    // Open the file
+
+    // 2. Check client's accepted encodings
+    const char* encoding = getEncoding(request);
+    const bool hasEncoding = (encoding != nullptr);
+
+    // 3. Choose the best available file (compressed preferred)
+    String filePath = path;           // fallback to uncompressed
+    const char* contentEncoding = nullptr;
+
+    if (hasEncoding) {
+        // Prefer Brotli over Gzip (better compression)
+        if (strcmp(encoding, "br") == 0) {
+            String brPath = path + ".br";
+            if (sd.exists(brPath.c_str())) {
+                filePath = brPath;
+                contentEncoding = "br";
+            }
+        }
+        // If Brotli not available or client didn't ask for it, try Gzip
+        if (contentEncoding == nullptr && strcmp(encoding, "gzip") == 0) {
+            String gzPath = path + ".gz";
+            if (sd.exists(gzPath.c_str())) {
+                filePath = gzPath;
+                contentEncoding = "gzip";
+            }
+        }
+        // Note: If client accepts both, getEncoding returns "br" first (if present),
+        // so we try br first, then gzip. If client only accepts gzip, we try that.
+        // If neither compressed file exists, we fall back to uncompressed.
+    }
+
+    // 4. Open the chosen file
     auto *file = new SdFile();
-    if (!file->open(path.c_str(), O_READ)) {
+    if (!file->open(filePath.c_str(), O_READ)) {
         delete file;
         request->send(404, "text/plain", "File not found");
         return;
     }
 
-    // Try compressed versions based on Accept-Encoding
-    const char *encoding = getEncoding(request);
-    const bool hasEncoding = (encoding != nullptr);
-
-    // Create chunked response with a lambda callback
-    AsyncWebServerResponse *sisisi = request->beginChunkedResponse(
-        getContentType(path),
+    // 5. Create chunked response (the lambda handles reading)
+    //    Use the original path for Content-Type (without .br/.gz)
+    AsyncWebServerResponse *response = request->beginChunkedResponse(
+        getContentType(path),   // MIME type based on original extension
         [file](uint8_t *buffer, const size_t maxLen, size_t) -> size_t {
             const size_t bytesRead = file->read(buffer, maxLen);
             if (bytesRead == 0) {
@@ -74,11 +101,17 @@ void DashboardServer::handleFileRequest(AsyncWebServerRequest *request) {
         }
     );
 
-    // Add content length if known
-    sisisi->addHeader("Content-Length", String(file->fileSize()));
-    request->send(sisisi);
-}
+    // 6. Add headers
+    response->addHeader("Content-Length", String(file->fileSize()));
+    if (contentEncoding != nullptr) {
+        response->addHeader("Content-Encoding", contentEncoding);
+        // Optionally add cache control for compressed assets
+        response->addHeader("Cache-Control", "public, max-age=31536000");
+    }
 
+    // 7. Send the response
+    request->send(response);
+}
 void DashboardServer::handleFavicon(AsyncWebServerRequest *request) {
     request->send(204); // No content
 }
