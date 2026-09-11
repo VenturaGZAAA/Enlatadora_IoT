@@ -15,9 +15,7 @@
 
 void SerialManager::init(const uint32_t _microsecondsDelay) {
     period = _microsecondsDelay;
-    Serial.println("\n=== Serial Queue Initializing ===");
     xTaskCreate(reinterpret_cast<TaskFunction_t>(loop), "SerialQueue", 2048, nullptr, 5, &task);
-    enqueueLine("=== Serial Queue Initialized ===");
 }
 
 [[noreturn]] void SerialManager::loop() {

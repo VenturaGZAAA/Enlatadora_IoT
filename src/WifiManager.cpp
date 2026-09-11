@@ -5,7 +5,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <secrets.h>
-// #include <ESPmDNS.h>
+#include <ESPmDNS.h>
 #include <ArduinoJson.h>
 #include <SerialManager.h>
 #include "WifiManager.h"
@@ -17,16 +17,21 @@ bool WifiManager::sta_connected = false;
 const char *WifiManager::hostname = "enlatadora-s3";
 IPAddress WifiManager::server_ip = IPAddress(192, 168, 4, 10);
 
-// void WifiManager::setupMdns()
-// {
-//     if (!MDNS.begin(hostname))
-//     {
-//         Serial.println("MDNS responder not available");
-//         return;
-//     }
-//     MDNS.addService("mqtt", "tcp", 1883);
-//     Serial.println("MDNS responder started: " + String(hostname) + ".local");
-// }
+void WifiManager::setupMdns()
+{
+    if (!MDNS.begin(hostname))
+    {
+        Serial.println("MDNS responder not available");
+        return;
+    }
+    MDNS.addService("mqtt", "tcp", 1883);
+
+    Serial.println("MDNS responder started: " + String(hostname) + ".local");
+}
+
+void WifiManager::addService(const char *serviceName, const char *serviceType, size_t port) {
+    MDNS.addService(serviceName, serviceType, port);
+}
 
 bool WifiManager::connectToNetwork() {
     const auto ssid = prefs.getString("ssid", secret_ssid);
@@ -36,17 +41,17 @@ bool WifiManager::connectToNetwork() {
     Serial.print("📶 Connecting to Wi-Fi");
     WiFi.begin(ssid, pass);
     int attempts = 0;
-    while (WiFi.status() != WL_CONNECTED && attempts < 30) {
+    while (WiFiClass::status() != WL_CONNECTED && attempts < 30) {
         delay(500);
         Serial.print(".");
         attempts++;
     }
-    if (WiFi.status() == WL_CONNECTED) {
+    if (WiFiClass::status() == WL_CONNECTED) {
         Serial.println("\n✅ WiFi connected!");
         server_ip = WiFi.localIP();
         Serial.print("📡 IP address: ");
         Serial.println(server_ip);
-        // setupMdns();
+        setupMdns();
         return true;
     }
     Serial.println("\n❌ Failed to connect to Wi-Fi");
@@ -70,7 +75,7 @@ bool WifiManager::startAccessPoint() {
         Serial.println(AP_PASSWORD);
         Serial.print("IP address: ");
         Serial.println(server_ip);
-        // setupMdns();
+        setupMdns();
         return true;
     }
     Serial.println("AP failed to start");

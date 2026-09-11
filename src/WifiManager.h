@@ -18,10 +18,11 @@ class WifiManager {
 
     static bool connectToNetwork();
     static bool startAccessPoint();
-    // static void setupMdns();
+    static void setupMdns();
 
     public:
     WifiManager() = delete;
+    static void addService(const char* serviceName, const char* serviceType,size_t port);
     static void wifiConfigCallback(const char *payload);
     static void wifiStateCallback(const char *payload);
     static bool setup();

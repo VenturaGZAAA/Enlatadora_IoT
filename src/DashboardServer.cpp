@@ -2,6 +2,8 @@
 #include "SerialManager.h"
 #include <SPI.h>
 
+#include "WifiManager.h"
+
 // --- SD Card Pins for ESP32-S3-DevKitM-1 ---
 #define SD_CS   10
 #define SD_MOSI 11
@@ -14,6 +16,10 @@ SdFat DashboardServer::sd;
 
 // ------------------------------------------------------------------
 // Setup
+
+// static auto testNum = 0;
+
+
 void DashboardServer::setup() {
     SerialManager::enqueueLine("\n=== 🚀 ESP32-S3 Web Server ===");
 
@@ -24,20 +30,32 @@ void DashboardServer::setup() {
         SerialManager::enqueueLine(" ❌ Card Mount Failed!");
         return;
     }
+    mounted = true;
     SerialManager::enqueueLine("✅ SD card mounted");
 
     // Configure routes
     server.on("/favicon.ico", HTTP_GET, handleFavicon);
-    server.on("/heello", HTTP_GET, [](AsyncWebServerRequest *request) {
-        request->send(200, "text/html", (uint8_t *) ("helloo"), strlen_P("helloo"));
-    });
+    // server.on("/test", HTTP_GET, [](AsyncWebServerRequest *request) {
+    //     const auto testString = "Test no." + String(testNum);
+    //     const auto testText = testString.c_str();
+    //     const size_t testTextLen = strlen(testText);
+    //     request->send(200, "text/html", (uint8_t *) (testText), testTextLen);
+    //     testNum++;
+    //     if (testNum >= 10000) {
+    //         testNum = 0;
+    //     }
+    // });
     server.onNotFound(handleFileRequest);
 
     // Start server
     server.begin();
     SerialManager::enqueueLine("🌐 HTTP server started on port 80");
-    SerialManager::enqueueLine("📍 Open http://" + WiFi.localIP().toString() + " in your browser");
-    SerialManager::enqueueLine("\n========================================\n");
+    SerialManager::enqueueLine("📍 Open http://" + WifiManager::getServerIP().toString() + " in your browser");
+    WifiManager::addService("http","tcp",80);
+}
+
+bool DashboardServer::isMounted() {
+    return mounted;
 }
 
 void DashboardServer::handleFileRequest(AsyncWebServerRequest *request) {
@@ -49,37 +67,32 @@ void DashboardServer::handleFileRequest(AsyncWebServerRequest *request) {
         path = "/web" + path;
     }
 
-    // 2. Check client's accepted encodings
     const char* encoding = getEncoding(request);
     const bool hasEncoding = (encoding != nullptr);
 
-    // 3. Choose the best available file (compressed preferred)
-    String filePath = path;           // fallback to uncompressed
+
+    String filePath = path;
     const char* contentEncoding = nullptr;
 
     if (hasEncoding) {
-        // Prefer Brotli over Gzip (better compression)
         if (strcmp(encoding, "br") == 0) {
-            String brPath = path + ".br";
+            const String brPath = path + ".br";
             if (sd.exists(brPath.c_str())) {
                 filePath = brPath;
                 contentEncoding = "br";
             }
         }
-        // If Brotli not available or client didn't ask for it, try Gzip
+
         if (contentEncoding == nullptr && strcmp(encoding, "gzip") == 0) {
-            String gzPath = path + ".gz";
+            const String gzPath = path + ".gz";
             if (sd.exists(gzPath.c_str())) {
                 filePath = gzPath;
                 contentEncoding = "gzip";
             }
         }
-        // Note: If client accepts both, getEncoding returns "br" first (if present),
-        // so we try br first, then gzip. If client only accepts gzip, we try that.
-        // If neither compressed file exists, we fall back to uncompressed.
     }
 
-    // 4. Open the chosen file
+
     auto *file = new SdFile();
     if (!file->open(filePath.c_str(), O_READ)) {
         delete file;
@@ -87,8 +100,6 @@ void DashboardServer::handleFileRequest(AsyncWebServerRequest *request) {
         return;
     }
 
-    // 5. Create chunked response (the lambda handles reading)
-    //    Use the original path for Content-Type (without .br/.gz)
     AsyncWebServerResponse *response = request->beginChunkedResponse(
         getContentType(path),   // MIME type based on original extension
         [file](uint8_t *buffer, const size_t maxLen, size_t) -> size_t {
@@ -108,7 +119,6 @@ void DashboardServer::handleFileRequest(AsyncWebServerRequest *request) {
         // Optionally add cache control for compressed assets
         response->addHeader("Cache-Control", "public, max-age=31536000");
     }
-
     // 7. Send the response
     request->send(response);
 }
