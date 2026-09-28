@@ -35,16 +35,6 @@ void DashboardServer::setup() {
 
     // Configure routes
     server.on("/favicon.ico", HTTP_GET, handleFavicon);
-    // server.on("/test", HTTP_GET, [](AsyncWebServerRequest *request) {
-    //     const auto testString = "Test no." + String(testNum);
-    //     const auto testText = testString.c_str();
-    //     const size_t testTextLen = strlen(testText);
-    //     request->send(200, "text/html", (uint8_t *) (testText), testTextLen);
-    //     testNum++;
-    //     if (testNum >= 10000) {
-    //         testNum = 0;
-    //     }
-    // });
     server.onNotFound(handleFileRequest);
 
     // Start server

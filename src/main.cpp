@@ -30,17 +30,14 @@ static TaskHandle_t serverTaskHandle;
 
     while (true)
     {
-        // Handle MQTT
         MqttServer::loop();
 
-        // Feed watchdog every 100ms
         if (millis() - lastWatchdogFeed > 100)
         {
-            // esp_task_wdt_reset();
+            esp_task_wdt_reset();
             lastWatchdogFeed = millis();
         }
 
-        // Don't delay too much, but yield to other tasks
         vTaskDelay(pdMS_TO_TICKS(1));
     }
 }
@@ -73,7 +70,18 @@ void setup()
     );
 }
 
+#define RGB_BUILTIN 48
+#define RGB_BRIGHTNESS 64
+#define BLINK_DELAY 750
+
 void loop()
 {
-    vTaskDelay(pdMS_TO_TICKS(500));
+    neopixelWrite(RGB_BUILTIN,RGB_BRIGHTNESS,0,0);
+    vTaskDelay(pdMS_TO_TICKS(BLINK_DELAY));
+    neopixelWrite(RGB_BUILTIN,0,RGB_BRIGHTNESS,0);
+    vTaskDelay(pdMS_TO_TICKS(BLINK_DELAY));
+    neopixelWrite(RGB_BUILTIN,0,0,RGB_BRIGHTNESS);
+    vTaskDelay(pdMS_TO_TICKS(BLINK_DELAY));
+    neopixelWrite(RGB_BUILTIN,0,0,0);
+    vTaskDelay(pdMS_TO_TICKS(BLINK_DELAY));
 }
