@@ -5,10 +5,11 @@
 #include "WifiManager.h"
 
 // --- SD Card Pins for ESP32-S3-DevKitM-1 ---
-#define SD_CS   10
-#define SD_MOSI 11
-#define SD_MISO 13
-#define SD_SCK  12
+
+#define SD_CS   47
+#define SD_MOSI 21
+#define SD_MISO 19
+#define SD_SCK  20
 
 // Static definitions
 AsyncWebServer DashboardServer::server(80);
@@ -17,16 +18,16 @@ SdFat DashboardServer::sd;
 // ------------------------------------------------------------------
 // Setup
 
-// static auto testNum = 0;
-
-
 void DashboardServer::setup() {
     SerialManager::enqueueLine("\n=== 🚀 ESP32-S3 Web Server ===");
 
     // Initialize SD card
     SerialManager::enqueueLine("📀 Initializing SD card...");
     SPI.begin(SD_SCK, SD_MISO, SD_MOSI, SD_CS);
-    if (!sd.begin(SD_CS, SD_SCK_MHZ(4))) {
+
+    // SpiSdConfig sdConfig(SD_CS, SHARED_SPI, SD_SCK_MHZ(4), &SPI);
+
+    if (const SdSpiConfig cfg(SD_CS, SHARED_SPI, SD_SCK_MHZ(4), &SPI); !sd.begin(cfg)) {
         SerialManager::enqueueLine(" ❌ Card Mount Failed!");
         return;
     }
