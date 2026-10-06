@@ -37,7 +37,7 @@ void MqttServer::setup() {
     mqtt.subscribe("home/test/led", [](const char *) {
         SerialManager::enqueueLine("You pressed the button!");
     });
-    // mqtt.subscribe("config/wifi/data", wifiConfigCallback);
+
 }
 
 void MqttServer::loop() {

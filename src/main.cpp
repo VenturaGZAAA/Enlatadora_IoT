@@ -7,40 +7,15 @@
 #include <nvs_flash.h>
 #include "SerialManager.h"
 #include "WifiManager.h"
+#include "CanningMachine.h"
 
 static TaskHandle_t serverTaskHandle;
 
 #define SERVER_STACK_SIZE (8192 * 2)
 
-[[noreturn]] static void serverTask()
-{
-    MqttServer::setup();
-    DashboardServer::setup();
-
-    MqttServer::registerCallback("config/wifi/data",WifiManager::wifiConfigCallback);
-    MqttServer::registerCallback("config/wifi/get",WifiManager::wifiStateCallback);
-    MqttServer::registerCallback("admin/reset/request",[](const char * p) {
-        if (String(p) == "1") {
-            ESP.restart();
-        }
-    });
-
-    unsigned long lastWatchdogFeed = millis();
+[[noreturn]] static void serverTask();
 
 
-    while (true)
-    {
-        MqttServer::loop();
-
-        if (millis() - lastWatchdogFeed > 100)
-        {
-            esp_task_wdt_reset();
-            lastWatchdogFeed = millis();
-        }
-
-        vTaskDelay(pdMS_TO_TICKS(1));
-    }
-}
 
 void setup()
 {
@@ -58,6 +33,8 @@ void setup()
 
     delay(100);
 
+    DashboardServer::setup();
+
 
     xTaskCreatePinnedToCore(
         reinterpret_cast<TaskFunction_t>(serverTask),
@@ -68,6 +45,7 @@ void setup()
         &serverTaskHandle,
         0
     );
+    CanningMachine::begin();
 }
 
 #define RGB_BUILTIN 48
@@ -84,4 +62,45 @@ void loop()
     vTaskDelay(pdMS_TO_TICKS(BLINK_DELAY));
     neopixelWrite(RGB_BUILTIN,0,0,0);
     vTaskDelay(pdMS_TO_TICKS(BLINK_DELAY));
+}
+
+
+[[noreturn]] static void serverTask()
+{
+    MqttServer::setup();
+
+    static bool shouldUpdateWifi = false;
+
+    MqttServer::registerCallback("config/wifi/data",WifiManager::wifiConfigCallback);
+    MqttServer::registerCallback("config/wifi/get",[](const char * p) {
+        shouldUpdateWifi = true;
+    });
+    MqttServer::registerCallback("admin/reset/request",[](const char * p) {
+        if (String(p) == "1") {
+            CanningMachine::allOff();
+            ESP.restart();
+        }
+    });
+
+    unsigned long lastWatchdogFeed = millis();
+    unsigned long lastWifiUpdate = millis();
+
+    while (true)
+    {
+        MqttServer::loop();
+
+        if (millis() - lastWatchdogFeed > 100)
+        {
+            esp_task_wdt_reset();
+            lastWatchdogFeed = millis();
+        }
+        if (millis() - lastWifiUpdate > 5000 || shouldUpdateWifi) {
+            MqttServer::publish("config/wifi/state",WifiManager::getState());
+            SerialManager::enqueueLine("Wifi state published!");
+            shouldUpdateWifi = false;
+            lastWifiUpdate = millis();
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(1));
+    }
 }

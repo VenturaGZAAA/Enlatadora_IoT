@@ -108,9 +108,6 @@ IPAddress WifiManager::getServerIP() {
     return server_ip;
 }
 
-void WifiManager::wifiStateCallback(const char *) {
-    MqttServer::publish("config/wifi/state",getState());
-}
 
 void WifiManager::wifiConfigCallback(const char *payload) {
     SerialManager::enqueueLine("Wifi data received: \t" + String(payload));
