@@ -32,6 +32,7 @@ void SerialManager::run() {
    }
     if (Serial.available() > 0) {
         const auto data = Serial.readStringUntil('\r');
+        Serial.println("Serial data received: \t" + data);
         for (const auto &item : serialCallbacks) {
             item(data.c_str());
         }

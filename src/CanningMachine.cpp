@@ -3,6 +3,7 @@
 //
 
 #include "CanningMachine.h"
+#include <ArduinoJson.h>
 
 void CanningMachine::begin() {
   configurePins();
@@ -31,7 +32,7 @@ void CanningMachine::startTask(const UBaseType_t priority,
 void CanningMachine::configurePins() {
   for (int i = 0; i < NUM_INPUTS; ++i) {
     pinMode(IN_PINS[i], INPUT);
-    inputState[i] = (digitalRead(IN_PINS[i]) == HIGH);
+    // inputState[i] = (digitalRead(IN_PINS[i]) == HIGH);
   }
 
   for (int i = 0; i < NUM_OUTPUTS; ++i) {
@@ -46,8 +47,45 @@ void CanningMachine::writeOutput(const int index, const bool value) {
 }
 
 bool CanningMachine::readInput(const int index) {
-  inputState[index] = (digitalRead(IN_PINS[index]) == HIGH);
+  // inputState[index] = digitalRead(IN_PINS[index]) == HIGH;
   return inputState[index];
+}
+
+String CanningMachine::getJsonOutputs() {
+  JsonDocument jsonDoc;
+
+  for (int i = 0; i < NUM_OUTPUTS; ++i) {
+    jsonDoc["Q" + String(i)] = outputState[i];
+  }
+
+  String jsonOutput;
+  serializeJson(jsonDoc, jsonOutput);
+  return jsonOutput;
+}
+
+
+String CanningMachine::getJsonInputs() {
+  JsonDocument jsonDoc;
+
+  for (int i = 0; i < NUM_INPUTS; ++i) {
+    jsonDoc["I" + String(i)] = inputState[i];
+  }
+
+  String jsonOutput;
+  serializeJson(jsonDoc, jsonOutput);
+  return jsonOutput;
+}
+
+void CanningMachine::inputsWriteCallback(const char *payload) {
+  JsonDocument doc;
+  if (deserializeJson(doc, payload)) {
+    return;
+  }
+  for (int i = 0; i < NUM_INPUTS; ++i) {
+    if (doc["I" + String(i)].is<bool>()) {
+      inputState[i] = doc["I" + String(i)];
+    }
+  }
 }
 
 void CanningMachine::allOff() {

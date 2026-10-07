@@ -82,6 +82,9 @@ public:
     CanningMachine() = delete;
 
     static void begin();
+    static String getJsonOutputs();
+    static String getJsonInputs();
+    static void inputsWriteCallback(const char *payload);
     static void allOff();
 
 };

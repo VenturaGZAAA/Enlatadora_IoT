@@ -28,6 +28,7 @@ void DashboardServer::setup() {
    
     if (const SdSpiConfig cfg(SD_CS, SHARED_SPI, SD_SCK_MHZ(4), &SPI); !sd.begin(cfg)) {
         SerialManager::enqueueLine(" ❌ Card Mount Failed!");
+        SPI.end();
         return;
     }
     mounted = true;

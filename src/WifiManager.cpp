@@ -110,7 +110,6 @@ IPAddress WifiManager::getServerIP() {
 
 
 void WifiManager::wifiConfigCallback(const char *payload) {
-    SerialManager::enqueueLine("Wifi data received: \t" + String(payload));
     JsonDocument doc;
     if (deserializeJson(doc, payload)) {
         return;

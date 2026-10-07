@@ -23,6 +23,7 @@ void setup()
     delay(100);
 
     SerialManager::registerCallback(WifiManager::wifiConfigCallback);
+    SerialManager::registerCallback(CanningMachine::inputsWriteCallback);
 
     if (!WifiManager::setup()) {
         Serial.println("Failed to setup WiFi");
@@ -80,9 +81,11 @@ void loop()
         }
     });
 
+    MqttServer::registerCallback("machine/IO/inputs/write",CanningMachine::inputsWriteCallback);
+
     unsigned long lastWatchdogFeed = millis();
     unsigned long lastWifiUpdate = millis();
-
+    unsigned long lastIOUpdate = millis();
     while (true)
     {
         MqttServer::loop();
@@ -94,9 +97,14 @@ void loop()
         }
         if (millis() - lastWifiUpdate > 5000 || shouldUpdateWifi) {
             MqttServer::publish("config/wifi/state",WifiManager::getState());
-            SerialManager::enqueueLine("Wifi state published!");
             shouldUpdateWifi = false;
             lastWifiUpdate = millis();
+        }
+
+        if (millis() - lastIOUpdate > 200) {
+            MqttServer::publish("machine/IO/outputs/read",CanningMachine::getJsonOutputs());
+            MqttServer::publish("machine/IO/inputs/read",CanningMachine::getJsonInputs());
+            lastIOUpdate = millis();
         }
 
         vTaskDelay(pdMS_TO_TICKS(1));
