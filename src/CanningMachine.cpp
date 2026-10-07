@@ -4,21 +4,9 @@
 
 #include "CanningMachine.h"
 
-
-namespace {
-int IN_PINS[] = {40, 39, 38, 37, 36, 35, 0, 45};
-constexpr int NUM_ENTRADAS = std::size(IN_PINS);
-
-int ACTUATOR_PINS[] = {
-  18, 17, 16, 15, 7, 6, 5, 4, 13, 12,
-  11, 10, 9, 46, 3, 8, 41, 42, 2
-};
-constexpr int NUM_ACTUADORES = std::size(ACTUATOR_PINS);
-}
-
 void CanningMachine::begin() {
-  // configurePins();
-  // allOff();
+  configurePins();
+  allOff();
 
   stage = Stage::Reposo;
   sistemaAutorizado = false;
@@ -41,24 +29,36 @@ void CanningMachine::startTask(const UBaseType_t priority,
 }
 
 void CanningMachine::configurePins() {
-  for (int i = 0; i < NUM_ENTRADAS; ++i) {
+  for (int i = 0; i < NUM_INPUTS; ++i) {
     pinMode(IN_PINS[i], INPUT);
+    inputState[i] = (digitalRead(IN_PINS[i]) == HIGH);
   }
 
-  for (int i = 0; i < NUM_ACTUADORES; ++i) {
+  for (int i = 0; i < NUM_OUTPUTS; ++i) {
     pinMode(ACTUATOR_PINS[i], OUTPUT);
+    outputState[i] = false;
   }
 }
 
+void CanningMachine::writeOutput(const int index, const bool value) {
+  outputState[index] = value;
+  digitalWrite(ACTUATOR_PINS[index], value ? HIGH : LOW);
+}
+
+bool CanningMachine::readInput(const int index) {
+  inputState[index] = (digitalRead(IN_PINS[index]) == HIGH);
+  return inputState[index];
+}
+
 void CanningMachine::allOff() {
-  for (int i = 0; i < NUM_ACTUADORES; ++i) {
-    digitalWrite(ACTUATOR_PINS[i], LOW);
+  for (int i = 0; i < NUM_OUTPUTS; ++i) {
+    writeOutput(i, false);
   }
 }
 
 void CanningMachine::updateAuthorization() {
-  if (digitalRead(IN_PINS[4]) != HIGH) sistemaAutorizado = true;
-  if (digitalRead(IN_PINS[5]) != LOW)  sistemaAutorizado = false;
+  if (!readInput(4)) sistemaAutorizado = true;
+  if ( readInput(5)) sistemaAutorizado = false;
 }
 
 [[noreturn]] void CanningMachine::run() {
@@ -76,15 +76,15 @@ void CanningMachine::updateAuthorization() {
         break;
 
       case Stage::EsperaLata:
-        digitalWrite(ACTUATOR_PINS[16], HIGH);
+        writeOutput(16, true);
 
-        while (digitalRead(IN_PINS[3]) == HIGH && sistemaAutorizado) {
+        while (readInput(3) && sistemaAutorizado) {
           delay(1);
           updateAuthorization();
         }
 
         // Original priority: sensor first, then authorization.
-        if (digitalRead(IN_PINS[3]) != HIGH) {
+        if (!readInput(3)) {
           stage = Stage::TopeActivo;
         } else if (!sistemaAutorizado) {
           stage = Stage::Reposo;
@@ -92,39 +92,39 @@ void CanningMachine::updateAuthorization() {
         break;
 
       case Stage::TopeActivo:
-        digitalWrite(ACTUATOR_PINS[18], HIGH);
+        writeOutput(18, true);
         delay(2000);
         stage = Stage::FrenadoYBajarTope;
         break;
 
       case Stage::FrenadoYBajarTope:
-        digitalWrite(ACTUATOR_PINS[16], LOW);
-        digitalWrite(ACTUATOR_PINS[18], LOW);
+        writeOutput(16, false);
+        writeOutput(18, false);
         stage = Stage::SubirPlataformaTolva;
         break;
 
       case Stage::SubirPlataformaTolva:
-        digitalWrite(ACTUATOR_PINS[17], HIGH);
+        writeOutput(17, true);
         delay(1000);
         stage = Stage::Llenado;
         break;
 
       case Stage::Llenado:
-        digitalWrite(ACTUATOR_PINS[1], HIGH);
+        writeOutput(1, true);
         delay(1000);
-        digitalWrite(ACTUATOR_PINS[1], LOW);
+        writeOutput(1, false);
         stage = Stage::BajarPlataformaTolva;
         break;
 
       case Stage::BajarPlataformaTolva:
-        digitalWrite(ACTUATOR_PINS[17], LOW);
+        writeOutput(17, false);
         stage = Stage::TrasladoAPlataformaSalida;
         break;
 
       case Stage::TrasladoAPlataformaSalida:
-        digitalWrite(ACTUATOR_PINS[16], HIGH);
+        writeOutput(16, true);
 
-        while (digitalRead(IN_PINS[2]) == HIGH) {
+        while (readInput(2)) {
           delay(1);
         }
 
@@ -133,47 +133,47 @@ void CanningMachine::updateAuthorization() {
 
       case Stage::MantenerCadena2s:
         delay(2000);
-        digitalWrite(ACTUATOR_PINS[16], LOW);
-        digitalWrite(ACTUATOR_PINS[0], HIGH);
+        writeOutput(16, false);
+        writeOutput(0, true);
         stage = Stage::CadenaSalida10s;
         break;
 
       case Stage::CadenaSalida10s:
-        digitalWrite(ACTUATOR_PINS[11], HIGH);
-        digitalWrite(ACTUATOR_PINS[15], HIGH);
-        digitalWrite(ACTUATOR_PINS[12], HIGH);
-        digitalWrite(ACTUATOR_PINS[2], HIGH);
+        writeOutput(11, true);
+        writeOutput(15, true);
+        writeOutput(12, true);
+        writeOutput(2, true);
 
         delay(10000);
 
-        digitalWrite(ACTUATOR_PINS[11], LOW);
-        digitalWrite(ACTUATOR_PINS[15], LOW);
-        digitalWrite(ACTUATOR_PINS[12], LOW);
-        digitalWrite(ACTUATOR_PINS[0], LOW);
+        writeOutput(11, false);
+        writeOutput(15, false);
+        writeOutput(12, false);
+        writeOutput(0, false);
 
         stage = Stage::ExtenderPiston;
         break;
 
       case Stage::ExtenderPiston:
-        digitalWrite(ACTUATOR_PINS[4], HIGH);
+        writeOutput(4, true);
         delay(2000);
         stage = Stage::BajarVentosaYTapas;
         break;
 
       case Stage::BajarVentosaYTapas:
-        digitalWrite(ACTUATOR_PINS[5], HIGH);
-        digitalWrite(ACTUATOR_PINS[6], HIGH);
-        digitalWrite(ACTUATOR_PINS[3], HIGH);
+        writeOutput(5, true);
+        writeOutput(6, true);
+        writeOutput(3, true);
 
         // Original: waits 1000 ms OR until IN_PINS[7] goes LOW.
         // Poll at 1 ms to preserve the sensor override.
         for (int i = 0; i < 1000; ++i) {
-          if (!digitalRead(IN_PINS[7])) {
-            digitalWrite(ACTUATOR_PINS[4], LOW);
-            digitalWrite(ACTUATOR_PINS[3], LOW);
-            digitalWrite(ACTUATOR_PINS[6], LOW);
-            digitalWrite(ACTUATOR_PINS[5], LOW);
-            digitalWrite(ACTUATOR_PINS[2], LOW);
+          if (!readInput(7)) {
+            writeOutput(4, false);
+            writeOutput(3, false);
+            writeOutput(6, false);
+            writeOutput(5, false);
+            writeOutput(2, false);
 
             stage = Stage::ActivarBanda3;
             break;
@@ -187,53 +187,53 @@ void CanningMachine::updateAuthorization() {
         break;
 
       case Stage::RetraerPiston:
-        digitalWrite(ACTUATOR_PINS[4], LOW);
-        digitalWrite(ACTUATOR_PINS[3], LOW);
+        writeOutput(4, false);
+        writeOutput(3, false);
         delay(2000);
         stage = Stage::SoltarTapa;
         break;
 
       case Stage::SoltarTapa:
-        digitalWrite(ACTUATOR_PINS[6], LOW);
+        writeOutput(6, false);
         delay(500);
         stage = Stage::RetraerVentosaYBajarPlataforma;
         break;
 
       case Stage::RetraerVentosaYBajarPlataforma:
-        digitalWrite(ACTUATOR_PINS[5], LOW);
-        digitalWrite(ACTUATOR_PINS[2], LOW);
+        writeOutput(5, false);
+        writeOutput(2, false);
         delay(500);
         stage = Stage::BandaTransportadora3;
         break;
 
       case Stage::BandaTransportadora3:
-        digitalWrite(ACTUATOR_PINS[14], HIGH);
-        digitalWrite(ACTUATOR_PINS[7], HIGH);
+        writeOutput(14, true);
+        writeOutput(7, true);
         delay(5000);
         stage = Stage::DesactivarBanda3;
         break;
 
       case Stage::DesactivarBanda3:
-        digitalWrite(ACTUATOR_PINS[14], LOW);
+        writeOutput(14, false);
         delay(1000);
         stage = Stage::AsegurarPaletYSoltarTope;
         break;
 
       case Stage::AsegurarPaletYSoltarTope:
-        digitalWrite(ACTUATOR_PINS[8], HIGH);
-        digitalWrite(ACTUATOR_PINS[7], LOW);
+        writeOutput(8, true);
+        writeOutput(7, false);
         delay(1000);
         stage = Stage::LevantarLata;
         break;
 
       case Stage::LevantarLata:
-        digitalWrite(ACTUATOR_PINS[9], HIGH);
+        writeOutput(9, true);
         delay(500);
         stage = Stage::VerificacionEstadoLata;
         break;
 
       case Stage::VerificacionEstadoLata:
-        if (digitalRead(IN_PINS[0])) {
+        if (readInput(0)) {
           stage = Stage::BajarLata;
         } else {
           stage = Stage::Sellar;
@@ -241,33 +241,33 @@ void CanningMachine::updateAuthorization() {
         break;
 
       case Stage::Sellar:
-        digitalWrite(ACTUATOR_PINS[13], HIGH);
+        writeOutput(13, true);
         delay(1000);
         stage = Stage::ApagarMotorSellado;
         break;
 
       case Stage::ApagarMotorSellado:
-        digitalWrite(ACTUATOR_PINS[13], LOW);
+        writeOutput(13, false);
         delay(500);
         stage = Stage::BajarLata;
         break;
 
       case Stage::BajarLata:
-        digitalWrite(ACTUATOR_PINS[9], LOW);
+        writeOutput(9, false);
         delay(500);
         stage = Stage::DesasegurarPalet;
         break;
 
       case Stage::DesasegurarPalet:
-        digitalWrite(ACTUATOR_PINS[8], LOW);
+        writeOutput(8, false);
         delay(500);
         stage = Stage::ActivarBanda3;
         break;
 
       case Stage::ActivarBanda3:
-        digitalWrite(ACTUATOR_PINS[14], HIGH);
+        writeOutput(14, true);
 
-        while (digitalRead(IN_PINS[1]) == HIGH) {
+        while (readInput(1)) {
           delay(1);
         }
 
@@ -275,7 +275,7 @@ void CanningMachine::updateAuthorization() {
         break;
 
       case Stage::ApagarBanda3YRepetir:
-        digitalWrite(ACTUATOR_PINS[14], LOW);
+        writeOutput(14, false);
 
         if (sistemaAutorizado) {
           stage = Stage::EsperaLata;

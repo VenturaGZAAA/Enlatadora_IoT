@@ -42,6 +42,23 @@ class CanningMachine {
         ApagarBanda3YRepetir
       };
 
+    static constexpr int NUM_INPUTS  = 8;
+    static constexpr int NUM_OUTPUTS = 19;
+
+    static constexpr int IN_PINS[NUM_INPUTS] = {
+        40, 39, 38, 37, 36, 35, 0, 45
+    };
+
+    static constexpr int ACTUATOR_PINS[NUM_OUTPUTS] = {
+        18, 17, 16, 15, 7, 6, 5, 4, 13, 12,
+        11, 10, 9, 46, 3, 8, 41, 42, 2
+    };
+
+
+    static inline bool inputState[NUM_INPUTS]   = {};
+    static inline bool outputState[NUM_OUTPUTS] = {};
+
+
     static inline auto stage = Stage::Reposo;
     static inline bool sistemaAutorizado = false;
     static inline TaskHandle_t taskHandle = nullptr;
@@ -55,6 +72,11 @@ class CanningMachine {
     static  void startTask(UBaseType_t priority = 1,
                    uint32_t stackSize = 4096,
                    BaseType_t core = 1);
+
+    static void writeOutput(int index, bool value);
+
+
+    static bool readInput(int index);
 
 public:
     CanningMachine() = delete;

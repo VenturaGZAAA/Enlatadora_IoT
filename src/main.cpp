@@ -15,8 +15,6 @@ static TaskHandle_t serverTaskHandle;
 
 [[noreturn]] static void serverTask();
 
-
-
 void setup()
 {
     nvs_flash_init();

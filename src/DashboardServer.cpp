@@ -8,8 +8,8 @@
 
 #define SD_CS   47
 #define SD_MOSI 21
-#define SD_MISO 19
 #define SD_SCK  20
+#define SD_MISO 19
 
 // Static definitions
 AsyncWebServer DashboardServer::server(80);
@@ -25,8 +25,7 @@ void DashboardServer::setup() {
     SerialManager::enqueueLine("📀 Initializing SD card...");
     SPI.begin(SD_SCK, SD_MISO, SD_MOSI, SD_CS);
 
-    // SpiSdConfig sdConfig(SD_CS, SHARED_SPI, SD_SCK_MHZ(4), &SPI);
-
+   
     if (const SdSpiConfig cfg(SD_CS, SHARED_SPI, SD_SCK_MHZ(4), &SPI); !sd.begin(cfg)) {
         SerialManager::enqueueLine(" ❌ Card Mount Failed!");
         return;
@@ -52,6 +51,7 @@ bool DashboardServer::isMounted() {
 void DashboardServer::handleFileRequest(AsyncWebServerRequest *request) {
     // 1. Determine the base file path (without compression suffix)
     String path = request->url();
+    SerialManager::enqueueLine("Handling:\t" + path);
     if (path == "/" || path == "") {
         path = "/web/index.html";
     } else {
@@ -88,6 +88,7 @@ void DashboardServer::handleFileRequest(AsyncWebServerRequest *request) {
     if (!file->open(filePath.c_str(), O_READ)) {
         delete file;
         request->send(404, "text/plain", "File not found");
+        SerialManager::enqueueLine("File not found");
         return;
     }
 
@@ -112,6 +113,9 @@ void DashboardServer::handleFileRequest(AsyncWebServerRequest *request) {
     }
     // 7. Send the response
     request->send(response);
+
+    SerialManager::enqueueLine("response sent");
+
 }
 void DashboardServer::handleFavicon(AsyncWebServerRequest *request) {
     request->send(204); // No content
