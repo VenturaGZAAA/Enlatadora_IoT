@@ -22,8 +22,8 @@ void setup()
     SerialManager::init();
     delay(100);
 
-    SerialManager::registerCallback(WifiManager::wifiConfigCallback);
-    SerialManager::registerCallback(CanningMachine::inputsWriteCallback);
+    SerialManager::registerJsonCallback(WifiManager::wifiConfigJsonCallback);
+    SerialManager::registerJsonCallback(CanningMachine::inputsWriteJsonCallback);
 
     if (!WifiManager::setup()) {
         Serial.println("Failed to setup WiFi");
@@ -102,6 +102,7 @@ void loop()
         }
 
         if (millis() - lastIOUpdate > 200) {
+            MqttServer::publish("machine/stage",CanningMachine::getStage());
             MqttServer::publish("machine/IO/outputs/read",CanningMachine::getJsonOutputs());
             MqttServer::publish("machine/IO/inputs/read",CanningMachine::getJsonInputs());
             lastIOUpdate = millis();

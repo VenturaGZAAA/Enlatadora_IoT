@@ -7,7 +7,7 @@
 
 #include <Arduino.h>
 #include <Preferences.h>
-
+#include <ArduinoJson.h>
 static Preferences prefs;
 
 class WifiManager {
@@ -23,6 +23,7 @@ class WifiManager {
     public:
     WifiManager() = delete;
     static void addService(const char* serviceName, const char* serviceType,size_t port);
+    static void wifiConfigJsonCallback(const JsonDocument &doc);
     static void wifiConfigCallback(const char *payload);
     static bool setup();
     static IPAddress getServerIP();

@@ -109,11 +109,7 @@ IPAddress WifiManager::getServerIP() {
 }
 
 
-void WifiManager::wifiConfigCallback(const char *payload) {
-    JsonDocument doc;
-    if (deserializeJson(doc, payload)) {
-        return;
-    }
+void WifiManager::wifiConfigJsonCallback(const JsonDocument &doc) {
 
     prefs.begin("wifi", false);
     if (doc["start_ap"].is<bool>()) {
@@ -146,6 +142,16 @@ void WifiManager::wifiConfigCallback(const char *payload) {
     prefs.putString("pass", pass);
     SerialManager::enqueueLine("WiFi credentials overwritten");
     prefs.end();
+}
+
+void WifiManager::wifiConfigCallback(const char *payload) {
+    JsonDocument jsonDoc;
+    if (deserializeJson(jsonDoc, payload)) {
+        Serial.println("Failed to deserialize wifi config data " + String(payload));
+        return;
+    }
+
+    wifiConfigJsonCallback(jsonDoc);
 }
 
 

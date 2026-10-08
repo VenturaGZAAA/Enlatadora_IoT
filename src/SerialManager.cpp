@@ -33,8 +33,17 @@ void SerialManager::run() {
     if (Serial.available() > 0) {
         const auto data = Serial.readStringUntil('\r');
         Serial.println("Serial data received: \t" + data);
-        for (const auto &item : serialCallbacks) {
-            item(data.c_str());
+
+        if (JsonDocument jsonDocument; !deserializeJson(jsonDocument, data)) {
+            Serial.println("Json document received");
+            for (const auto &item : serialJsonCallbacks) {
+                item(jsonDocument);
+            }
+        }
+        else {
+            for (const auto &item : serialCallbacks) {
+                item(data.c_str());
+            }
         }
     }
 }
@@ -66,4 +75,7 @@ void SerialManager::enqueueLine(const char * str) {
 
 void SerialManager::registerCallback(const std::function<void(const char*)>& callback) {
     serialCallbacks.push_back(callback);
+}
+void SerialManager::registerJsonCallback(const std::function<void(JsonDocument)>& callback) {
+    serialJsonCallbacks.push_back(callback);
 }

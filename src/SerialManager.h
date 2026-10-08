@@ -6,9 +6,11 @@
 #define ENLATADORA_IOT_SERIALQUEUE_H
 #include <queue>
 #include <string>
+#include <ArduinoJson.h>
 class SerialManager {
     static inline std::queue<std::string> serialQueue;
     static inline std::vector<std::function<void(const char *)>> serialCallbacks;
+    static inline std::vector<std::function<void(JsonDocument)>> serialJsonCallbacks;
     static inline TaskHandle_t task;
     static inline uint32_t period = 10;
 
@@ -28,6 +30,7 @@ public:
     static void enqueueLine(const char * str);
 
     static void registerCallback(const std::function<void(const char*)>& callback);
+    static void registerJsonCallback(const std::function<void(JsonDocument)>& callback);
     static void run();
     static void init(uint32_t _microsecondsDelay = 10);
 

@@ -10,6 +10,7 @@
 #include <Arduino.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include <ArduinoJson.h>
 
 class CanningMachine {
 
@@ -84,6 +85,8 @@ public:
     static void begin();
     static String getJsonOutputs();
     static String getJsonInputs();
+    static String getStage();
+    static void inputsWriteJsonCallback(const JsonDocument &doc);
     static void inputsWriteCallback(const char *payload);
     static void allOff();
 
