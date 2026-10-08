@@ -29,19 +29,46 @@ void DashboardServer::setup() {
     if (const SdSpiConfig cfg(SD_CS, SHARED_SPI, SD_SCK_MHZ(4), &SPI); !sd.begin(cfg)) {
         SerialManager::enqueueLine(" ❌ Card Mount Failed!");
         SPI.end();
-        return;
     }
-    mounted = true;
-    SerialManager::enqueueLine("✅ SD card mounted");
+    else {
+        mounted = true;
+        SerialManager::enqueueLine("✅ SD card mounted");
+        // Configure routes
+        server.on("/favicon.ico", HTTP_GET, handleFavicon);
+        server.onNotFound(handleFileRequest);
+    }
 
-    // Configure routes
-    server.on("/favicon.ico", HTTP_GET, handleFavicon);
-    server.onNotFound(handleFileRequest);
+    server.on("/config/wifi/set",HTTP_POST, [](AsyncWebServerRequest *request) {
+        if (request->_tempObject == nullptr) {
+            request->send(200, "application/json", R"({"status":"success"})");
+        }
+        else {
+            const String errorMsg = *static_cast<String *>(request->_tempObject);
+            // delete static_cast<String *>(request->_tempObject);
+
+            const String responseJson = R"({"status":"error","message":")" + errorMsg + R"("})";
+            request->send(400, "application/json", responseJson);
+        }
+
+    },nullptr,[](AsyncWebServerRequest *request,uint8_t *data, size_t length, size_t idx,size_t total) {
+        JsonDocument doc;
+        const DeserializationError error = deserializeJson(doc, data, length);
+        if (error) {
+            SerialManager::enqueue("Error parsing JSON for Wifi config on HTTP: ");
+            SerialManager::enqueueLine(error.c_str());
+            request->_tempObject = new String(error.c_str());
+            return;
+        }
+        WifiManager::wifiConfigJsonCallback(doc);
+        request->_tempObject = nullptr;
+    });
 
     // Start server
     server.begin();
     SerialManager::enqueueLine("🌐 HTTP server started on port 80");
-    SerialManager::enqueueLine("📍 Open http://" + WifiManager::getServerIP().toString() + " in your browser");
+    if (mounted) {
+        SerialManager::enqueueLine("📍 Open http://" + WifiManager::getServerIP().toString() + " in your browser");
+    }
     WifiManager::addService("http","tcp",80);
 }
 
