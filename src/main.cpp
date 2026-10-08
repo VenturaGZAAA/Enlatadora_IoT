@@ -1,3 +1,4 @@
+#include <secrets.h>
 #include <WiFi.h>
 #include <SPI.h>
 #include <DashboardServer.h>
@@ -70,7 +71,7 @@ void loop()
 
     static bool shouldUpdateWifi = false;
 
-    MqttServer::registerCallback("config/wifi/data",WifiManager::wifiConfigCallback);
+    MqttServer::registerCallback("config/wifi/set",WifiManager::wifiConfigCallback);
     MqttServer::registerCallback("config/wifi/get",[](const char * p) {
         shouldUpdateWifi = true;
     });
@@ -81,7 +82,9 @@ void loop()
         }
     });
 
+#ifdef INPUT_LOGIC_TEST
     MqttServer::registerCallback("machine/IO/inputs/write",CanningMachine::inputsWriteCallback);
+#endif
 
     unsigned long lastWatchdogFeed = millis();
     unsigned long lastWifiUpdate = millis();

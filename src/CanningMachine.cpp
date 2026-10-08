@@ -6,7 +6,7 @@
 #include <ArduinoJson.h>
 
 #include "SerialManager.h"
-
+#include <secrets.h>
 
 
 void CanningMachine::begin() {
@@ -36,11 +36,17 @@ void CanningMachine::startTask(const UBaseType_t priority,
 void CanningMachine::configurePins() {
   for (int i = 0; i < NUM_INPUTS; ++i) {
     pinMode(IN_PINS[i], INPUT);
-    inputState[i] = false;
-    // inputState[i] = (digitalRead(IN_PINS[i]) == HIGH);
-  }
 
+#ifndef INPUT_LOGIC_TEST
+    inputState[i] = (digitalRead(IN_PINS[i]) == HIGH);
+#else
+    inputState[i] = false;
+#endif
+
+  }
+#ifdef INPUT_LOGIC_TEST
   inputState[4] = true;
+#endif
 
   for (int i = 0; i < NUM_OUTPUTS; ++i) {
     pinMode(ACTUATOR_PINS[i], OUTPUT);
@@ -54,7 +60,9 @@ void CanningMachine::writeOutput(const int index, const bool value) {
 }
 
 bool CanningMachine::readInput(const int index) {
-  // inputState[index] = digitalRead(IN_PINS[index]) == HIGH;
+#ifndef INPUT_LOGIC_TEST
+  inputState[index] = digitalRead(IN_PINS[index]) == HIGH;
+#endif
   return inputState[index];
 }
 
