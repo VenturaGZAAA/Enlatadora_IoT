@@ -7,6 +7,8 @@
 
 #include "SerialManager.h"
 
+
+
 void CanningMachine::begin() {
   configurePins();
   allOff();
@@ -56,10 +58,48 @@ bool CanningMachine::readInput(const int index) {
   return inputState[index];
 }
 
-String CanningMachine::getStage() {
-  return String(static_cast<int>(stage));
+
+
+const char* CanningMachine::stageName(const Stage s) {
+  switch (s) {
+    case Stage::Reposo:                        return "Reposo";
+    case Stage::EsperaLata:                    return "EsperaLata";
+    case Stage::TopeActivo:                    return "TopeActivo";
+    case Stage::FrenadoYBajarTope:             return "FrenadoYBajarTope";
+    case Stage::SubirPlataformaTolva:          return "SubirPlataformaTolva";
+    case Stage::Llenado:                       return "Llenado";
+    case Stage::BajarPlataformaTolva:          return "BajarPlataformaTolva";
+    case Stage::TrasladoAPlataformaSalida:     return "TrasladoAPlataformaSalida";
+    case Stage::MantenerCadena2s:              return "MantenerCadena2s";
+    case Stage::CadenaSalida10s:               return "CadenaSalida10s";
+    case Stage::ExtenderPiston:                return "ExtenderPiston";
+    case Stage::BajarVentosaYTapas:            return "BajarVentosaYTapas";
+    case Stage::RetraerPiston:                 return "RetraerPiston";
+    case Stage::SoltarTapa:                    return "SoltarTapa";
+    case Stage::RetraerVentosaYBajarPlataforma:return "RetraerVentosaYBajarPlataforma";
+    case Stage::BandaTransportadora3:          return "BandaTransportadora3";
+    case Stage::DesactivarBanda3:              return "DesactivarBanda3";
+    case Stage::AsegurarPaletYSoltarTope:      return "AsegurarPaletYSoltarTope";
+    case Stage::LevantarLata:                  return "LevantarLata";
+    case Stage::VerificacionEstadoLata:        return "VerificacionEstadoLata";
+    case Stage::Sellar:                        return "Sellar";
+    case Stage::ApagarMotorSellado:            return "ApagarMotorSellado";
+    case Stage::BajarLata:                     return "BajarLata";
+    case Stage::DesasegurarPalet:              return "DesasegurarPalet";
+    case Stage::ActivarBanda3:                 return "ActivarBanda3";
+    case Stage::ApagarBanda3YRepetir:          return "ApagarBanda3YRepetir";
+  }
+  return "Desconocido";
 }
 
+String CanningMachine::getStage() {
+  String result;
+  result.reserve(40);
+  result += static_cast<int>(stage);
+  result += "-";
+  result += stageName(stage);
+  return result;
+}
 String CanningMachine::getJsonOutputs() {
   JsonDocument jsonDoc;
 

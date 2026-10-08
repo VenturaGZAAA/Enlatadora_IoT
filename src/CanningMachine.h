@@ -42,7 +42,7 @@ class CanningMachine {
         ActivarBanda3,
         ApagarBanda3YRepetir
       };
-
+    static const char* stageName(Stage s);
     static constexpr int NUM_INPUTS  = 8;
     static constexpr int NUM_OUTPUTS = 19;
 
