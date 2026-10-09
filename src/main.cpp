@@ -71,7 +71,16 @@ void loop()
 
     static bool shouldUpdateWifi = false;
 
-    MqttServer::registerCallback("config/wifi/set",WifiManager::wifiConfigCallback);
+    MqttServer::registerCallback("config/wifi/set",[](const char *payload) {
+        JsonDocument doc;
+        const DeserializationError error = deserializeJson(doc,payload);
+        if (error) {
+            SerialManager::enqueue("Error deserializing WiFi config json on MQTT: ");
+            SerialManager::enqueueLine(error.c_str());
+            return;
+        }
+        WifiManager::wifiConfigJsonCallback(doc);
+    });
     MqttServer::registerCallback("config/wifi/get",[](const char * p) {
         shouldUpdateWifi = true;
     });
@@ -83,7 +92,16 @@ void loop()
     });
 
 #ifdef INPUT_LOGIC_TEST
-    MqttServer::registerCallback("machine/IO/inputs/write",CanningMachine::inputsWriteCallback);
+    MqttServer::registerCallback("machine/IO/inputs/write",[](const char *payload) {
+        JsonDocument doc;
+        const DeserializationError error = deserializeJson(doc,payload);
+        if (error) {
+            SerialManager::enqueue("Error deserializing inputs write over MQTT: ");
+            SerialManager::enqueueLine(error.c_str());
+            return;
+        }
+        CanningMachine::inputsWriteJsonCallback(doc);
+    });
 #endif
 
     unsigned long lastWatchdogFeed = millis();

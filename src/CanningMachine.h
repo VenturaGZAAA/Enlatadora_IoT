@@ -87,7 +87,7 @@ public:
     static String getJsonInputs();
     static String getStage();
     static void inputsWriteJsonCallback(const JsonDocument &doc);
-    static void inputsWriteCallback(const char *payload);
+
     static void allOff();
 
 };

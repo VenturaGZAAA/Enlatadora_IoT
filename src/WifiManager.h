@@ -24,7 +24,6 @@ class WifiManager {
     WifiManager() = delete;
     static void addService(const char* serviceName, const char* serviceType,size_t port);
     static void wifiConfigJsonCallback(const JsonDocument &doc);
-    static void wifiConfigCallback(const char *payload);
     static bool setup();
     static IPAddress getServerIP();
     static String getState();

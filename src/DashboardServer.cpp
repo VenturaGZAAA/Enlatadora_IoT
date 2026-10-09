@@ -50,7 +50,7 @@ void DashboardServer::setup() {
             request->send(400, "application/json", responseJson);
         }
 
-    },nullptr,[](AsyncWebServerRequest *request,uint8_t *data, size_t length, size_t idx,size_t total) {
+    },nullptr,[](AsyncWebServerRequest *request,uint8_t *data, size_t length, size_t,size_t) {
         JsonDocument doc;
         const DeserializationError error = deserializeJson(doc, data, length);
         if (error) {

@@ -144,15 +144,4 @@ void WifiManager::wifiConfigJsonCallback(const JsonDocument &doc) {
     prefs.end();
 }
 
-void WifiManager::wifiConfigCallback(const char *payload) {
-    JsonDocument jsonDoc;
-    if (deserializeJson(jsonDoc, payload)) {
-        Serial.println("Failed to deserialize wifi config data " + String(payload));
-        return;
-    }
-
-    wifiConfigJsonCallback(jsonDoc);
-}
-
-
 

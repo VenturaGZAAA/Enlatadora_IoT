@@ -141,16 +141,6 @@ void CanningMachine::inputsWriteJsonCallback(const JsonDocument &doc) {
   }
 }
 
-void CanningMachine::inputsWriteCallback(const char *payload) {
-  JsonDocument jsonDoc;
-  if (deserializeJson(jsonDoc,payload)) {
-    SerialManager::enqueueLine("Error deserializing inputs json payload: " + String(payload));
-    return;
-  }
-
-  inputsWriteJsonCallback(jsonDoc);
-}
-
 void CanningMachine::allOff() {
   for (int i = 0; i < NUM_OUTPUTS; ++i) {
     writeOutput(i, false);
