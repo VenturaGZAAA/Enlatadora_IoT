@@ -1,7 +1,7 @@
 #include "DashboardServer.h"
 #include "SerialManager.h"
 #include <SPI.h>
-
+#include <build_flags.h>
 #include "WifiManager.h"
 
 // --- SD Card Pins for ESP32-S3-DevKitM-1 ---

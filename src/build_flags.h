@@ -1,0 +1,11 @@
+//
+// Created by urzu-7 on 10/9/26.
+//
+
+#ifndef ENLATADORA_IOT_BUILD_FLAGS_H
+#define ENLATADORA_IOT_BUILD_FLAGS_H
+
+#define INPUT_LOGIC_TEST
+#define OUTPUT_TEST
+
+#endif //ENLATADORA_IOT_BUILD_FLAGS_H

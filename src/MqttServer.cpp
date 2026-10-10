@@ -7,7 +7,7 @@
 
 #include <utility>
 #include "MqttServer.h"
-
+#include <build_flags.h>
 #include "SerialManager.h"
 
 

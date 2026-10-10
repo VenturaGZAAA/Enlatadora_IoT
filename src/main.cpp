@@ -1,4 +1,4 @@
-#include <secrets.h>
+#include <build_flags.h>
 #include <WiFi.h>
 #include <SPI.h>
 #include <DashboardServer.h>
@@ -16,8 +16,7 @@ static TaskHandle_t serverTaskHandle;
 
 [[noreturn]] static void serverTask();
 
-void setup()
-{
+void setup() {
     nvs_flash_init();
     Serial.begin(115200);
     SerialManager::init();
@@ -25,6 +24,7 @@ void setup()
 
     SerialManager::registerJsonCallback(WifiManager::wifiConfigJsonCallback);
     SerialManager::registerJsonCallback(CanningMachine::inputsWriteJsonCallback);
+    SerialManager::registerJsonCallback(CanningMachine::outputsWriteJsonCallback);
 
     if (!WifiManager::setup()) {
         Serial.println("Failed to setup WiFi");
@@ -52,28 +52,26 @@ void setup()
 #define RGB_BRIGHTNESS 64
 #define BLINK_DELAY 750
 
-void loop()
-{
-    neopixelWrite(RGB_BUILTIN,RGB_BRIGHTNESS,0,0);
+void loop() {
+    neopixelWrite(RGB_BUILTIN,RGB_BRIGHTNESS, 0, 0);
     vTaskDelay(pdMS_TO_TICKS(BLINK_DELAY));
-    neopixelWrite(RGB_BUILTIN,0,RGB_BRIGHTNESS,0);
+    neopixelWrite(RGB_BUILTIN, 0,RGB_BRIGHTNESS, 0);
     vTaskDelay(pdMS_TO_TICKS(BLINK_DELAY));
-    neopixelWrite(RGB_BUILTIN,0,0,RGB_BRIGHTNESS);
+    neopixelWrite(RGB_BUILTIN, 0, 0,RGB_BRIGHTNESS);
     vTaskDelay(pdMS_TO_TICKS(BLINK_DELAY));
-    neopixelWrite(RGB_BUILTIN,0,0,0);
+    neopixelWrite(RGB_BUILTIN, 0, 0, 0);
     vTaskDelay(pdMS_TO_TICKS(BLINK_DELAY));
 }
 
 
-[[noreturn]] static void serverTask()
-{
+[[noreturn]] static void serverTask() {
     MqttServer::setup();
 
     static bool shouldUpdateWifi = false;
 
-    MqttServer::registerCallback("config/wifi/set",[](const char *payload) {
+    MqttServer::registerCallback("config/wifi/set", [](const char *payload) {
         JsonDocument doc;
-        const DeserializationError error = deserializeJson(doc,payload);
+        const DeserializationError error = deserializeJson(doc, payload);
         if (error) {
             SerialManager::enqueue("Error deserializing WiFi config json on MQTT: ");
             SerialManager::enqueueLine(error.c_str());
@@ -81,20 +79,31 @@ void loop()
         }
         WifiManager::wifiConfigJsonCallback(doc);
     });
-    MqttServer::registerCallback("config/wifi/get",[](const char * p) {
+    MqttServer::registerCallback("config/wifi/get", [](const char *p) {
         shouldUpdateWifi = true;
     });
-    MqttServer::registerCallback("admin/reset/request",[](const char * p) {
+    MqttServer::registerCallback("admin/reset/request", [](const char *p) {
         if (String(p) == "1") {
             CanningMachine::allOff();
             ESP.restart();
         }
     });
 
-#ifdef INPUT_LOGIC_TEST
-    MqttServer::registerCallback("machine/IO/inputs/write",[](const char *payload) {
+    MqttServer::registerCallback("machine/IO/outputs/write", [](const char *payload) {
         JsonDocument doc;
-        const DeserializationError error = deserializeJson(doc,payload);
+        const DeserializationError error = deserializeJson(doc, payload);
+        if (error) {
+            SerialManager::enqueue("Error deserializing inputs write over MQTT: ");
+            SerialManager::enqueueLine(error.c_str());
+            return;
+        }
+        CanningMachine::outputsWriteJsonCallback(doc);
+    });
+
+#ifdef INPUT_LOGIC_TEST
+    MqttServer::registerCallback("machine/IO/inputs/write", [](const char *payload) {
+        JsonDocument doc;
+        const DeserializationError error = deserializeJson(doc, payload);
         if (error) {
             SerialManager::enqueue("Error deserializing inputs write over MQTT: ");
             SerialManager::enqueueLine(error.c_str());
@@ -106,26 +115,30 @@ void loop()
 
     unsigned long lastWatchdogFeed = millis();
     unsigned long lastWifiUpdate = millis();
+    unsigned long lastStateUpdate = millis();
     unsigned long lastIOUpdate = millis();
-    while (true)
-    {
+    while (true) {
         MqttServer::loop();
 
-        if (millis() - lastWatchdogFeed > 100)
-        {
+        if (millis() - lastWatchdogFeed > 100) {
             esp_task_wdt_reset();
             lastWatchdogFeed = millis();
         }
         if (millis() - lastWifiUpdate > 5000 || shouldUpdateWifi) {
-            MqttServer::publish("config/wifi/state",WifiManager::getState());
+            MqttServer::publish("config/wifi/state", WifiManager::getState());
             shouldUpdateWifi = false;
             lastWifiUpdate = millis();
         }
 
+        if (millis() - lastStateUpdate > 1000 ) {
+            MqttServer::publish("machine/state/read",CanningMachine::getSerializedState());
+            lastStateUpdate = millis();
+        }
+
         if (millis() - lastIOUpdate > 200) {
-            MqttServer::publish("machine/stage",CanningMachine::getStage());
-            MqttServer::publish("machine/IO/outputs/read",CanningMachine::getJsonOutputs());
-            MqttServer::publish("machine/IO/inputs/read",CanningMachine::getJsonInputs());
+            // MqttServer::publish("machine/stage", CanningMachine::getStage());
+            MqttServer::publish("machine/IO/outputs/read", CanningMachine::getJsonOutputs());
+            MqttServer::publish("machine/IO/inputs/read", CanningMachine::getJsonInputs());
             lastIOUpdate = millis();
         }
 

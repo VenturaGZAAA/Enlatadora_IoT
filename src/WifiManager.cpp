@@ -5,6 +5,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <secrets.h>
+#include <build_flags.h>
 #include <ESPmDNS.h>
 #include <ArduinoJson.h>
 #include <SerialManager.h>
