@@ -8,23 +8,24 @@
 #include <PicoMQTT.h>
 #include <PicoWebsocket.h>
 
+#define SERVER_STACK_SIZE (8192 * 2)
 
-class MqttServer {
+class MqttManager {
     static WiFiServer tcp_server;
     static WiFiServer websocket_underlying_server;
     static PicoWebsocket::Server<WiFiServer> websocket_server;
     static PicoMQTT::Server mqtt;
-    static unsigned long lastTime;
-    static bool led;
+    static inline TaskHandle_t mqttTaskHandle;
+    [[noreturn]] static void serverTask();
+
 
 public:
-    MqttServer() = delete;
+    MqttManager() = delete;
 
     static void setup();
     static void registerCallback(const char *topic, const std::function<void(char *)>& callback);
     static void publish(const char *topic, const String& payload,uint8_t qos = 0);
 
-    static void loop();
 };
 
 

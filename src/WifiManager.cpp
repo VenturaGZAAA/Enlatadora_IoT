@@ -11,7 +11,6 @@
 #include <SerialManager.h>
 #include "WifiManager.h"
 
-#include "MqttServer.h"
 
 bool WifiManager::start_ap = false;
 bool WifiManager::sta_connected = false;
