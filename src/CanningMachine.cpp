@@ -57,7 +57,7 @@ void CanningMachine::configurePins() {
 
 void CanningMachine::writeOutput(const int index, const bool value) {
     outputState[index] = value;
-#ifdef OUTPUT_TEST
+#ifndef OUTPUT_TEST
     digitalWrite(ACTUATOR_PINS[index], value ? HIGH : LOW);
 #endif
 }
@@ -148,17 +148,20 @@ String CanningMachine::getJsonInputs() {
 }
 
 void CanningMachine::outputsWriteJsonCallback(const JsonDocument &doc) {
-    if (!allowOutputOverride) {
-        SerialManager::enqueueLine("Output override not enabled");
-        return;
-    }
-    if (machineRunning && !machinePaused) {
-        SerialManager::enqueueLine("Output override while the machine is running and not paused is not allowed");
-        return;
-    }
-
-    for (int i = 0; i < NUM_INPUTS; ++i) {
+    bool authorized = false;
+    for (int i = 0; i < NUM_OUTPUTS; ++i) {
         if (doc["Q" + String(i)].is<bool>()) {
+            if (!authorized) {
+                if (!allowOutputOverride) {
+                    SerialManager::enqueueLine("Output override not enabled");
+                    return;
+                }
+                if (machineRunning && !machinePaused) {
+                    SerialManager::enqueueLine("Output override while the machine is running and not paused is not allowed");
+                    return;
+                }
+                authorized = true;
+            }
             writeOutput(i, doc["Q" + String(i)]);
         }
     }
@@ -193,7 +196,9 @@ void CanningMachine::updateAuthorization() {
 
         switch (stage) {
             case Stage::Reposo:
-                allOff();
+                if (!allowOutputOverride) {
+                    allOff();
+                }
                 if (sistemaAutorizado) {
                     stage = Stage::EsperaLata;
                 } else {

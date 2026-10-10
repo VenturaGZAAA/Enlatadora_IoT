@@ -16,7 +16,7 @@ class MqttManager {
     static PicoWebsocket::Server<WiFiServer> websocket_server;
     static PicoMQTT::Server mqtt;
     static inline TaskHandle_t mqttTaskHandle;
-    [[noreturn]] static void serverTask();
+    [[noreturn]] static void mqttManagerLoop();
 
 
 public:

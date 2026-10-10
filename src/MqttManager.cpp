@@ -5,7 +5,6 @@
 #include <PicoMQTT.h>
 #include <PicoWebsocket.h>
 
-#include <utility>
 #include "MqttManager.h"
 #include <build_flags.h>
 #include "SerialManager.h"
@@ -33,13 +32,13 @@ void MqttManager::publish(const char *topic,const String& payload, const uint8_t
 void MqttManager::setup() {
     mqtt.begin();
 
-    mqtt.subscribe("home/test/led", [](const char *) {
+    registerCallback("home/test/led", [](const char *) {
         SerialManager::enqueueLine("You pressed the button!");
     });
 
     xTaskCreatePinnedToCore(
-        reinterpret_cast<TaskFunction_t>(serverTask),
-        "servers",
+        reinterpret_cast<TaskFunction_t>(mqttManagerLoop),
+        "MQTT_manager_loop",
         SERVER_STACK_SIZE,
         nullptr,
         1,
@@ -50,7 +49,7 @@ void MqttManager::setup() {
 
 
 
-[[noreturn]] void MqttManager::serverTask() {
+[[noreturn]] void MqttManager::mqttManagerLoop() {
 
     static bool shouldUpdateWifi = false;
 
