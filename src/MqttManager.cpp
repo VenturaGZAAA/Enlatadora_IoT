@@ -97,6 +97,8 @@ void MqttManager::setup() {
     });
 #endif
 
+    registerCallback("machine/command",CanningMachine::processCommands);
+
     unsigned long lastWatchdogFeed = millis();
     unsigned long lastWifiUpdate = millis();
     unsigned long lastStateUpdate = millis();

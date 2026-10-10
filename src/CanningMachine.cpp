@@ -185,6 +185,11 @@ void CanningMachine::allOff() {
     }
 }
 
+void CanningMachine::processCommands(const char *command) {
+    SerialManager::enqueue("Command received");
+    SerialManager::enqueueLine(command);
+}
+
 void CanningMachine::updateAuthorization() {
     if (!readInput(4)) sistemaAutorizado = true;
     if (readInput(5)) sistemaAutorizado = false;

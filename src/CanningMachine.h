@@ -94,6 +94,7 @@ public:
     static String getSerializedState();
     static void inputsWriteJsonCallback(const JsonDocument &doc);
     static void outputsWriteJsonCallback(const JsonDocument &doc);
+    static void processCommands(const char *command);
     static void allOff();
 
 };
