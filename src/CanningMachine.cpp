@@ -186,8 +186,8 @@ void CanningMachine::allOff() {
 }
 
 void CanningMachine::processCommands(const char *command) {
-    SerialManager::enqueue("Command received");
-    SerialManager::enqueueLine(command);
+    String msg = "Command received: " + String(command);
+    SerialManager::enqueueLine(msg);
 }
 
 void CanningMachine::updateAuthorization() {
