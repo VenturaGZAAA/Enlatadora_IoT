@@ -8,13 +8,15 @@
 #include "SerialManager.h"
 #include "WifiManager.h"
 #include "CanningMachine.h"
+#include "EvenTheRGBLedHasManagers.h"
 
 void setup() {
     nvs_flash_init();
     Serial.begin(115200);
     SerialManager::init();
+    EvenTheRGBLedHasManagers::init();
     delay(100);
-
+    EvenTheRGBLedHasManagers::setColor(RGBColor(255, 255, 255),250);
     SerialManager::registerJsonCallback(WifiManager::wifiConfigJsonCallback);
     SerialManager::registerJsonCallback(CanningMachine::inputsWriteJsonCallback);
     SerialManager::registerJsonCallback(CanningMachine::outputsWriteJsonCallback);
@@ -30,21 +32,9 @@ void setup() {
 
     DashboardServer::setup();
 
-
     CanningMachine::begin();
 }
 
-#define RGB_BUILTIN 48
-#define RGB_BRIGHTNESS 64
-#define BLINK_DELAY 750
-
 void loop() {
-    neopixelWrite(RGB_BUILTIN,RGB_BRIGHTNESS, 0, 0);
-    vTaskDelay(pdMS_TO_TICKS(BLINK_DELAY));
-    neopixelWrite(RGB_BUILTIN, 0,RGB_BRIGHTNESS, 0);
-    vTaskDelay(pdMS_TO_TICKS(BLINK_DELAY));
-    neopixelWrite(RGB_BUILTIN, 0, 0,RGB_BRIGHTNESS);
-    vTaskDelay(pdMS_TO_TICKS(BLINK_DELAY));
-    neopixelWrite(RGB_BUILTIN, 0, 0, 0);
-    vTaskDelay(pdMS_TO_TICKS(BLINK_DELAY));
+    vTaskDelay(pdMS_TO_TICKS(1000));
 }

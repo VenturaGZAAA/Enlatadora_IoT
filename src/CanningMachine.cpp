@@ -186,7 +186,7 @@ void CanningMachine::allOff() {
 }
 
 void CanningMachine::processCommands(const char *command) {
-    String msg = "Command received: " + String(command);
+    const String msg = "Command received: " + String(command);
     SerialManager::enqueueLine(msg);
 }
 

@@ -3,13 +3,13 @@
 #include <SPI.h>
 #include <build_flags.h>
 #include "WifiManager.h"
-
+#include "EvenTheRGBLedHasManagers.h"
 // --- SD Card Pins for ESP32-S3-DevKitM-1 ---
 
-#define SD_CS   47
-#define SD_MOSI 21
-#define SD_SCK  20
-#define SD_MISO 19
+#define SD_CS   11
+#define SD_MOSI 12
+#define SD_SCK  13
+#define SD_MISO 14
 
 // Static definitions
 AsyncWebServer DashboardServer::server(80);
@@ -82,6 +82,7 @@ void DashboardServer::handleFileRequest(AsyncWebServerRequest *request) {
     SerialManager::enqueueLine("Handling:\t" + path);
     if (path == "/" || path == "") {
         path = "/web/index.html";
+        EvenTheRGBLedHasManagers::setColor(RGBColor(200,200,0),250);
     } else {
         path = "/web" + path;
     }
