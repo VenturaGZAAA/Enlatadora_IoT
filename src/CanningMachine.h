@@ -59,7 +59,7 @@ class CanningMachine {
 
     static inline bool inputState[NUM_INPUTS] = {};
     static inline bool outputState[NUM_OUTPUTS] = {};
-
+    static inline bool setUp = false;
 
     static inline auto stage = Stage::Reposo;
     static inline bool sistemaAutorizado = false;
@@ -88,6 +88,8 @@ class CanningMachine {
 public:
     CanningMachine() = delete;
 
+    static void setup();
+
     static void begin();
 
     static String getJsonOutputs();
@@ -105,5 +107,7 @@ public:
     static void processCommands(const char *command);
 
     static void allOff();
+
+    static void stop();
 };
 #endif //ENLATADORA_IOT_CANNINGMACHINE_H

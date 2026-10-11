@@ -32,6 +32,7 @@ void setup() {
 
     DashboardServer::setup();
 
+    CanningMachine::setup();
     CanningMachine::begin();
 }
 

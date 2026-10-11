@@ -10,13 +10,19 @@
 #include <build_flags.h>
 
 
-void CanningMachine::begin() {
+void CanningMachine::setup() {
     configurePins();
     allOff();
+    setUp = true;
+}
+
+void CanningMachine::begin() {
+    if (!setUp) {
+        SerialManager::enqueueLine("Canning machine has not been set up");
+    }
 
     stage = Stage::Reposo;
     sistemaAutorizado = false;
-
     startTask();
 }
 
@@ -187,6 +193,8 @@ void CanningMachine::allOff() {
 }
 
 void CanningMachine::processCommands(const char *command) {
+    if (taskHandle == nullptr) return;
+
     const auto cmd = String(command);
 
     const String msg = "Command received: " + cmd;
@@ -194,11 +202,9 @@ void CanningMachine::processCommands(const char *command) {
 
     if (cmd == "AuthorizeOutputOverride") {
         allowOutputOverride = true;
-    }
-    else if (cmd == "DisableOutputOverride") {
+    } else if (cmd == "DisableOutputOverride") {
         allowOutputOverride = false;
-    }
-    else {
+    } else {
         SerialManager::enqueueLine("Command not recognized");
     }
 }
@@ -433,5 +439,17 @@ void CanningMachine::updateAuthorization() {
                 }
                 break;
         }
+    }
+}
+
+void CanningMachine::stop() {
+    if (taskHandle != nullptr) {
+        SerialManager::enqueueLine("Stopping canning machine");
+        vTaskDelete(taskHandle);
+        taskHandle = nullptr;
+        allOff();
+        machineRunning = false;
+        sistemaAutorizado = false;
+        stage = Stage::Reposo;
     }
 }
