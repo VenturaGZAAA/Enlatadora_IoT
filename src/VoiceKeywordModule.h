@@ -12,7 +12,8 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <freertos/queue.h>
-#include <AsyncHTTPRequest_Generic.h>
+#include <WiFiClientSecure.h>
+#include <HTTPClient.h>
 #include <ArduinoJson.h>
 
 // --- INMP441 I2S Pins (ESP32-S3) ---
@@ -50,14 +51,12 @@ public:
 private:
     static void captureTask(void* param);
     static void uploadTask(void* param);
-    static void onTranscriptionResponse(AsyncHTTPRequest* request, int readyState);
     static String buildMultipartBody(const uint8_t* audioData, size_t audioLen);
     static void processTranscript(const String& transcript);
 
     static QueueHandle_t audioQueue;
     static TaskHandle_t  captureTaskHandle;
     static TaskHandle_t  uploadTaskHandle;
-    static AsyncHTTPRequest httpRequest;
 
     struct KeywordEntry {
         String keyword;

@@ -11,7 +11,6 @@
 QueueHandle_t VoiceKeywordModule::audioQueue = nullptr;
 TaskHandle_t VoiceKeywordModule::captureTaskHandle = nullptr;
 TaskHandle_t VoiceKeywordModule::uploadTaskHandle = nullptr;
-AsyncHTTPRequest VoiceKeywordModule::httpRequest;
 std::vector<VoiceKeywordModule::KeywordEntry> VoiceKeywordModule::keywords;
 
 // ─────────────────────────────────────────────────────────────
@@ -124,7 +123,7 @@ void VoiceKeywordModule::captureTask(void *param) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Task 2: Upload to Groq API (non-blocking async HTTP)
+// Task 2: Upload to Groq API (synchronous HTTPClient in task thread)
 // ─────────────────────────────────────────────────────────────
 void VoiceKeywordModule::uploadTask(void *param) {
     AudioChunk chunk{};
@@ -136,72 +135,49 @@ void VoiceKeywordModule::uploadTask(void *param) {
         }
 
         // ── Build multipart/form-data body ──
-        String boundary = "----ESP32Boundary7MA4YWxkTrZu0gW";
-        String body = buildMultipartBody(reinterpret_cast<uint8_t *>(chunk.data),
+        const String boundary = "----ESP32Boundary7MA4YWxkTrZu0gW";
+        const String body = buildMultipartBody(reinterpret_cast<uint8_t *>(chunk.data),
                                          chunk.length * sizeof(int16_t));
 
         // Free the audio buffer as soon as the body is built
         free(chunk.data);
 
-        // ── Configure async HTTP request ──
-        httpRequest.setDebug(false);
-        httpRequest.setTimeout(30000); // 30 s max for API response
+        WiFiClientSecure client;
+        client.setInsecure(); // Skip certificate verification for Groq API endpoint
 
-        if (!httpRequest.open("POST", GROQ_API_URL)) {
-            SerialManager::enqueueLine("[Voice] Failed to open HTTP request");
-            continue;
+        HTTPClient http;
+        if (http.begin(client, GROQ_API_URL)) {
+            http.setTimeout(30000); // 30 s max for API response
+            http.addHeader("Authorization", String("Bearer ") + GROQ_API_KEY);
+            http.addHeader("Content-Type", "multipart/form-data; boundary=" + boundary);
+
+            const int httpCode = http.POST(reinterpret_cast<uint8_t *>(const_cast<char *>(body.c_str())), body.length());
+            if (httpCode == HTTP_CODE_OK) {
+                const String payload = http.getString();
+                JsonDocument doc;
+                const DeserializationError err = deserializeJson(doc, payload);
+                if (err) {
+                    SerialManager::enqueueLine("[Voice] JSON parse error: " + String(err.c_str()));
+                } else {
+                    String transcript = doc["text"] | "";
+                    transcript.trim();
+                    if (transcript.isEmpty()) {
+                        SerialManager::enqueueLine("[Voice] Empty transcript (silence)");
+                    } else {
+                        SerialManager::enqueueLine("[Voice] Transcript: " + transcript);
+                        processTranscript(transcript);
+                    }
+                }
+            } else {
+                SerialManager::enqueueLine("[Voice] Groq API error: " + String(httpCode));
+            }
+            http.end();
+        } else {
+            SerialManager::enqueueLine("[Voice] Failed to begin HTTP request");
         }
 
-        httpRequest.setReqHeader("Authorization", (String("Bearer ") + GROQ_API_KEY).c_str());
-        httpRequest.setReqHeader("Content-Type",
-                                 ("multipart/form-data; boundary=" + boundary).c_str());
-
-        // ── Send asynchronously with callback ──
-        // The callback fires when the full response arrives.
-        // This call returns immediately — no blocking.
-        httpRequest.send(reinterpret_cast<const uint8_t *>(body.c_str()), body.length());
-
-        // Wait for the async request to complete via callback
-        // (a semaphore or event group works here; simplified polling shown)
-        // In production, use an EventGroup bit set inside onTranscriptionResponse.
         vTaskDelay(pdMS_TO_TICKS(100)); // brief yield before next chunk
     }
-}
-
-// ─────────────────────────────────────────────────────────────
-// Async response callback — called when Groq replies
-// ─────────────────────────────────────────────────────────────
-void VoiceKeywordModule::onTranscriptionResponse(
-    AsyncHTTPRequest *request, const int readyState) {
-    if (readyState != readyStateDone) return;
-
-    const int statusCode = request->responseHTTPcode();
-    String payload = request->responseText();
-
-    if (statusCode != 200) {
-        const String msg = "[Voice] Groq API error: " + String(statusCode) + " - " + payload;
-        SerialManager::enqueueLine(msg);
-        return;
-    }
-
-    // ── Parse JSON response ──
-    JsonDocument doc;
-    const DeserializationError err = deserializeJson(doc, payload);
-    if (err) {
-        SerialManager::enqueueLine("[Voice] JSON parse error:" + String(err.c_str()));
-        return;
-    }
-
-    String transcript = doc["text"] | "";
-    transcript.trim();
-
-    if (transcript.isEmpty()) {
-        SerialManager::enqueueLine("[Voice] Empty transcript (silence)");
-        return;
-    }
-
-    SerialManager::enqueueLine("[Voice] Transcript: " + transcript);
-    processTranscript(transcript);
 }
 
 // ─────────────────────────────────────────────────────────────

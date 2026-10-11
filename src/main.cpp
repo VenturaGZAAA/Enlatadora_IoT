@@ -28,6 +28,16 @@ void setup() {
 
     // Initialize serial communication and serial command dispatcher.
     Serial.begin(115200);
+
+    Serial.printf("PSRAM found: %d\n", psramFound());
+    Serial.printf("PSRAM size:  %u bytes\n", ESP.getPsramSize());
+    Serial.printf("Free PSRAM:  %u bytes\n", ESP.getFreePsram());
+    Serial.printf("Free Heap:   %u bytes\n", ESP.getFreeHeap());
+    Serial.printf("Largest PSRAM block: %u bytes\n",
+        heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM));
+    Serial.printf("Largest HEAP  block: %u bytes\n",
+        heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT));
+
     SerialManager::init();
 
     // Initialize status RGB LED and set to White during early boot sequence.
@@ -43,6 +53,12 @@ void setup() {
     SerialManager::registerJsonCallback(CanningMachine::inputsWriteJsonCallback);
     SerialManager::registerJsonCallback(CanningMachine::outputsWriteJsonCallback);
     SerialManager::registerCallback(CanningMachine::processCommands);
+    SerialManager::registerCallback([](const char *payload) {
+       if (String(payload) == "voiceOn") {
+           VoiceKeywordModule::begin();
+           EvenTheRGBLedHasManagers::setColor(RGBColor(212, 128, 56));
+       }
+    });
 
     // --- 3. Network Connection (Wi-Fi) ---
     // Connect to configured Wi-Fi network; restart system if configuration/connection fails.
@@ -131,7 +147,6 @@ void setup() {
         EvenTheRGBLedHasManagers::setColor(RGBColor(255, 0,255), 500);
     });
 
-    VoiceKeywordModule::begin();
 
     // --- 7. Canning Machine Logic & Startup Completion ---
     // Initialize hardware pins, sensors, and actuators for the canning machine.
