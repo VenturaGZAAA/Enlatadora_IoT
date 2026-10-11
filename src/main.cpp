@@ -1,6 +1,5 @@
 #include <build_flags.h>
 #include <WiFi.h>
-#include <SPI.h>
 #include <DashboardServer.h>
 #include <PicoMQTT.h>
 #include "MqttManager.h"
@@ -16,10 +15,11 @@ void setup() {
     SerialManager::init();
     EvenTheRGBLedHasManagers::init();
     delay(100);
-    EvenTheRGBLedHasManagers::setColor(RGBColor(255, 255, 255),250);
+    EvenTheRGBLedHasManagers::setColor(RGBColor(255, 255, 255), 250);
     SerialManager::registerJsonCallback(WifiManager::wifiConfigJsonCallback);
     SerialManager::registerJsonCallback(CanningMachine::inputsWriteJsonCallback);
     SerialManager::registerJsonCallback(CanningMachine::outputsWriteJsonCallback);
+    SerialManager::registerCallback(CanningMachine::processCommands);
 
     if (!WifiManager::setup()) {
         Serial.println("Failed to setup WiFi");

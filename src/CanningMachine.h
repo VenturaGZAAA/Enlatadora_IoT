@@ -13,7 +13,6 @@
 #include <ArduinoJson.h>
 
 class CanningMachine {
-
     enum class Stage : uint8_t {
         Reposo = 0,
         EsperaLata,
@@ -41,9 +40,11 @@ class CanningMachine {
         DesasegurarPalet,
         ActivarBanda3,
         ApagarBanda3YRepetir
-      };
-    static const char* stageName(Stage s);
-    static constexpr int NUM_INPUTS  = 8;
+    };
+
+    static const char *stageName(Stage s);
+
+    static constexpr int NUM_INPUTS = 8;
     static constexpr int NUM_OUTPUTS = 19;
 
     static constexpr int IN_PINS[NUM_INPUTS] = {
@@ -56,7 +57,7 @@ class CanningMachine {
     };
 
 
-    static inline bool inputState[NUM_INPUTS]   = {};
+    static inline bool inputState[NUM_INPUTS] = {};
     static inline bool outputState[NUM_OUTPUTS] = {};
 
 
@@ -69,15 +70,15 @@ class CanningMachine {
     static inline bool allowOutputOverride = false;
     static inline TaskHandle_t taskHandle = nullptr;
 
-    [[noreturn]] static  void run();
+    [[noreturn]] static void run();
 
     static void configurePins();
 
     static void updateAuthorization();
 
-    static  void startTask(UBaseType_t priority = 1,
-                   uint32_t stackSize = 4096,
-                   BaseType_t core = 1);
+    static void startTask(UBaseType_t priority = 1,
+                          uint32_t stackSize = 4096,
+                          BaseType_t core = 1);
 
     static void writeOutput(int index, bool value);
 
@@ -88,14 +89,21 @@ public:
     CanningMachine() = delete;
 
     static void begin();
-    static String getJsonOutputs();
-    static String getJsonInputs();
-    static String getStage();
-    static String getSerializedState();
-    static void inputsWriteJsonCallback(const JsonDocument &doc);
-    static void outputsWriteJsonCallback(const JsonDocument &doc);
-    static void processCommands(const char *command);
-    static void allOff();
 
+    static String getJsonOutputs();
+
+    static String getJsonInputs();
+
+    static String getStage();
+
+    static String getSerializedState();
+
+    static void inputsWriteJsonCallback(const JsonDocument &doc);
+
+    static void outputsWriteJsonCallback(const JsonDocument &doc);
+
+    static void processCommands(const char *command);
+
+    static void allOff();
 };
 #endif //ENLATADORA_IOT_CANNINGMACHINE_H

@@ -157,7 +157,8 @@ void CanningMachine::outputsWriteJsonCallback(const JsonDocument &doc) {
                     return;
                 }
                 if (machineRunning && !machinePaused) {
-                    SerialManager::enqueueLine("Output override while the machine is running and not paused is not allowed");
+                    SerialManager::enqueueLine(
+                        "Output override while the machine is running and not paused is not allowed");
                     return;
                 }
                 authorized = true;
@@ -186,8 +187,20 @@ void CanningMachine::allOff() {
 }
 
 void CanningMachine::processCommands(const char *command) {
-    const String msg = "Command received: " + String(command);
+    const auto cmd = String(command);
+
+    const String msg = "Command received: " + cmd;
     SerialManager::enqueueLine(msg);
+
+    if (cmd == "AuthorizeOutputOverride") {
+        allowOutputOverride = true;
+    }
+    else if (cmd == "DisableOutputOverride") {
+        allowOutputOverride = false;
+    }
+    else {
+        SerialManager::enqueueLine("Command not recognized");
+    }
 }
 
 void CanningMachine::updateAuthorization() {

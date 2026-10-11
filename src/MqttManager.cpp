@@ -21,12 +21,12 @@ PicoWebsocket::Server<WiFiServer> MqttManager::websocket_server(websocket_underl
 PicoMQTT::Server MqttManager::mqtt(tcp_server, websocket_server);
 
 
-
-void MqttManager::registerCallback(const char *topic, const std::function<void(char *)>& callback) {
+void MqttManager::registerCallback(const char *topic, const std::function<void(char *)> &callback) {
     mqtt.subscribe(topic, callback);
 }
-void MqttManager::publish(const char *topic,const String& payload, const uint8_t qos) {
-    mqtt.publish(topic, payload,qos);
+
+void MqttManager::publish(const char *topic, const String &payload, const uint8_t qos) {
+    mqtt.publish(topic, payload, qos);
 }
 
 void MqttManager::setup() {
@@ -48,9 +48,7 @@ void MqttManager::setup() {
 }
 
 
-
 [[noreturn]] void MqttManager::mqttManagerLoop() {
-
     static bool shouldUpdateWifi = false;
 
     registerCallback("config/wifi/set", [](const char *payload) {
@@ -97,7 +95,7 @@ void MqttManager::setup() {
     });
 #endif
 
-    registerCallback("machine/command",CanningMachine::processCommands);
+    registerCallback("machine/command", CanningMachine::processCommands);
 
     unsigned long lastWatchdogFeed = millis();
     unsigned long lastWifiUpdate = millis();
@@ -117,8 +115,8 @@ void MqttManager::setup() {
             lastWifiUpdate = millis();
         }
 
-        if (millis() - lastStateUpdate > 1000 ) {
-            publish("machine/state/read",CanningMachine::getSerializedState());
+        if (millis() - lastStateUpdate > 1000) {
+            publish("machine/state/read", CanningMachine::getSerializedState());
             lastStateUpdate = millis();
         }
 

@@ -52,7 +52,7 @@ class EvenTheRGBLedHasManagers {
 public:
     static void init();
     static void setColor(RGBColor color,unsigned long t = 0);
-
+    static void stop();
 };
 
 

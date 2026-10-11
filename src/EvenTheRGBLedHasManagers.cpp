@@ -7,6 +7,9 @@
 #include "SerialManager.h"
 
 void EvenTheRGBLedHasManagers::init() {
+    if (loopHandle != nullptr) {
+        return;
+    }
     xTaskCreate(reinterpret_cast<TaskFunction_t>(loop), "RGB-Loop", 2048, nullptr, 3, &loopHandle);
 }
 
@@ -34,5 +37,15 @@ void EvenTheRGBLedHasManagers::writeColor(const RGBColor &color) {
         else {
             writeColor(persistentColor);
         }
+    }
+}
+
+void EvenTheRGBLedHasManagers::stop() {
+    if (loopHandle != nullptr) {
+        vTaskDelete(loopHandle);
+        loopHandle = nullptr;
+        holdColor = RGBColor();
+        persistentColor = RGBColor();
+        holdDuration = 0;
     }
 }
