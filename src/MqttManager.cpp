@@ -4,12 +4,9 @@
 #include <Arduino.h>
 #include <PicoMQTT.h>
 #include <PicoWebsocket.h>
-
 #include "MqttManager.h"
 #include <build_flags.h>
 #include "SerialManager.h"
-#include "WifiManager.h"
-#include "CanningMachine.h"
 #include <esp_task_wdt.h>
 
 WiFiServer MqttManager::tcp_server(1883);
@@ -25,17 +22,20 @@ void MqttManager::registerCallback(const char *topic, const std::function<void(c
     mqtt.subscribe(topic, callback);
 }
 
+void MqttManager::registerPeriodicPublish(const unsigned long delay, const std::function<void()> &callback) {
+    periodicPublishes.emplace_back(PeriodicPublish(delay, callback));
+}
+
+
 void MqttManager::publish(const char *topic, const String &payload, const uint8_t qos) {
     mqtt.publish(topic, payload, qos);
 }
 
 void MqttManager::setup() {
     mqtt.begin();
+}
 
-    registerCallback("home/test/led", [](const char *) {
-        SerialManager::enqueueLine("You pressed the button!");
-    });
-
+void MqttManager::begin() {
     xTaskCreatePinnedToCore(
         reinterpret_cast<TaskFunction_t>(mqttManagerLoop),
         "MQTT_manager_loop",
@@ -47,86 +47,25 @@ void MqttManager::setup() {
     );
 }
 
-
 [[noreturn]] void MqttManager::mqttManagerLoop() {
-    static bool shouldUpdateWifi = false;
 
-    registerCallback("config/wifi/set", [](const char *payload) {
-        JsonDocument doc;
-        const DeserializationError error = deserializeJson(doc, payload);
-        if (error) {
-            SerialManager::enqueue("Error deserializing WiFi config json on MQTT: ");
-            SerialManager::enqueueLine(error.c_str());
-            return;
-        }
-        WifiManager::wifiConfigJsonCallback(doc);
-    });
-    registerCallback("config/wifi/get", [](const char *p) {
-        shouldUpdateWifi = true;
-    });
-    registerCallback("admin/reset/request", [](const char *p) {
-        if (String(p) == "1") {
-            CanningMachine::allOff();
-            ESP.restart();
-        }
-    });
-
-    registerCallback("machine/IO/outputs/write", [](const char *payload) {
-        JsonDocument doc;
-        const DeserializationError error = deserializeJson(doc, payload);
-        if (error) {
-            SerialManager::enqueue("Error deserializing outputs write over MQTT: ");
-            SerialManager::enqueueLine(error.c_str());
-            return;
-        }
-        CanningMachine::outputsWriteJsonCallback(doc);
-    });
-
-#ifdef INPUT_LOGIC_TEST
-    registerCallback("machine/IO/inputs/write", [](const char *payload) {
-        JsonDocument doc;
-        const DeserializationError error = deserializeJson(doc, payload);
-        if (error) {
-            SerialManager::enqueue("Error deserializing inputs write over MQTT: ");
-            SerialManager::enqueueLine(error.c_str());
-            return;
-        }
-        CanningMachine::inputsWriteJsonCallback(doc);
-    });
-#endif
-
-    registerCallback("machine/command", CanningMachine::processCommands);
 
     unsigned long lastWatchdogFeed = millis();
-    unsigned long lastWifiUpdate = millis();
-    unsigned long lastStateUpdate = millis();
-    unsigned long lastIOUpdate = millis();
+
+
     while (true) {
         mqtt.loop();
 
-
+        for (auto &publisher : periodicPublishes) {
+            if (publisher.isTime()) {
+                publisher.execute();
+                publisher.resetTime();
+            }
+        }
         if (millis() - lastWatchdogFeed > 100) {
             esp_task_wdt_reset();
             lastWatchdogFeed = millis();
         }
-        if (millis() - lastWifiUpdate > 5000 || shouldUpdateWifi) {
-            publish("config/wifi/state", WifiManager::getState());
-            shouldUpdateWifi = false;
-            lastWifiUpdate = millis();
-        }
-
-        if (millis() - lastStateUpdate > 1000) {
-            publish("machine/state/read", CanningMachine::getSerializedState());
-            lastStateUpdate = millis();
-        }
-
-        if (millis() - lastIOUpdate > 200) {
-            // MqttServer::publish("machine/stage", CanningMachine::getStage());
-            publish("machine/IO/outputs/read", CanningMachine::getJsonOutputs());
-            publish("machine/IO/inputs/read", CanningMachine::getJsonInputs());
-            lastIOUpdate = millis();
-        }
-
         vTaskDelay(pdMS_TO_TICKS(1));
     }
 }

@@ -7,8 +7,29 @@
 
 #include <PicoMQTT.h>
 #include <PicoWebsocket.h>
+#include <MillisData.h>
 
+#include <utility>
 #define SERVER_STACK_SIZE (8192 * 2)
+
+class PeriodicPublish {
+    MillisData millisData;
+    std::function<void()> callback;
+
+public:
+    PeriodicPublish(const unsigned long delay, std::function<void()> callback) : millisData(delay) {
+        this->callback = std::move(callback);
+    }
+    [[nodiscard]] bool isTime() const {
+        return millisData.isTime();
+    }
+    void resetTime() {
+        millisData.reset();
+    }
+    void execute() const {
+        callback();
+    };
+};
 
 class MqttManager {
     static WiFiServer tcp_server;
@@ -16,16 +37,21 @@ class MqttManager {
     static PicoWebsocket::Server<WiFiServer> websocket_server;
     static PicoMQTT::Server mqtt;
     static inline TaskHandle_t mqttTaskHandle;
+
     [[noreturn]] static void mqttManagerLoop();
 
+    static inline  std::vector<PeriodicPublish> periodicPublishes;
 
 public:
     MqttManager() = delete;
 
     static void setup();
-    static void registerCallback(const char *topic, const std::function<void(char *)>& callback);
-    static void publish(const char *topic, const String& payload,uint8_t qos = 0);
+    static void begin();
 
+    static void registerCallback(const char *topic, const std::function<void(char *)> &callback);
+    static void registerPeriodicPublish(unsigned long delay, const std::function<void()> &callback);
+
+    static void publish(const char *topic, const String &payload, uint8_t qos = 0);
 };
 
 
