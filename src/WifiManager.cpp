@@ -100,6 +100,7 @@ bool WifiManager::setup() {
     }
     return startAccessPoint();
 }
+
 String WifiManager::getState() {
     JsonDocument jsonDoc;
     jsonDoc["start_ap"] = start_ap;

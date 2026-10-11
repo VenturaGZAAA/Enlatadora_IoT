@@ -76,25 +76,23 @@ void setup() {
 
     MqttManager::registerCallback("machine/command", CanningMachine::processCommands);
 
-    MqttManager::registerPeriodicPublish(5000, [] {
-        MqttManager::publish("config/wifi/state", WifiManager::getState());
-    });
-    MqttManager::registerPeriodicPublish(1000, [] {
-        MqttManager::publish("machine/state/read", CanningMachine::getSerializedState());
-    });
+    MqttManager::registerPeriodicPublish("config/wifi/state",5000, WifiManager::getState);
+    MqttManager::registerPeriodicPublish("machine/state/read",1000, CanningMachine::getSerializedState);
 
-    MqttManager::registerPeriodicPublish(200, [] {
-        MqttManager::publish("machine/IO/outputs/read", CanningMachine::getJsonOutputs());
-        MqttManager::publish("machine/IO/inputs/read", CanningMachine::getJsonInputs());
-    });
+
+    MqttManager::registerPeriodicPublish("machine/IO/outputs/read",200, CanningMachine::getJsonOutputs);
+    MqttManager::registerPeriodicPublish("machine/IO/inputs/read",200, CanningMachine::getJsonInputs);
+
 
     MqttManager::begin();
 
     DashboardServer::setup();
 
     CanningMachine::setup();
-    CanningMachine::begin();
+    delay(100);
     EvenTheRGBLedHasManagers::setColor(RGBColor(0, 255,0),1000);
+    CanningMachine::begin();
+
 }
 
 void loop() {

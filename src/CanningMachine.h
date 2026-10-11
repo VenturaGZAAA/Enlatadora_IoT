@@ -67,7 +67,7 @@ class CanningMachine {
     static inline bool machineRunning = false;
     static inline bool machinePaused = false;
 
-    static inline bool allowOutputOverride = false;
+    static inline bool allowOutputOverride = true;
     static inline TaskHandle_t taskHandle = nullptr;
 
     [[noreturn]] static void run();

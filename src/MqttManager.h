@@ -10,14 +10,15 @@
 #include <MillisData.h>
 
 #include <utility>
-#define SERVER_STACK_SIZE (8192 * 2)
+#define SERVER_STACK_SIZE (8192 * 3)
 
 class PeriodicPublish {
     MillisData millisData;
-    std::function<void()> callback;
+    std::function<String()> callback;
+    String topic;
 
 public:
-    PeriodicPublish(const unsigned long delay, std::function<void()> callback) : millisData(delay) {
+    PeriodicPublish(String topic,const unsigned long delay, std::function<String()> callback) : millisData(delay),topic(std::move(topic)) {
         this->callback = std::move(callback);
     }
     [[nodiscard]] bool isTime() const {
@@ -26,8 +27,11 @@ public:
     void resetTime() {
         millisData.reset();
     }
-    void execute() const {
-        callback();
+    [[nodiscard]] String getTopic() const {
+        return topic;
+    };
+    [[nodiscard]] String getPayload() const {
+        return  callback();
     };
 };
 
@@ -37,10 +41,12 @@ class MqttManager {
     static PicoWebsocket::Server<WiFiServer> websocket_server;
     static PicoMQTT::Server mqtt;
     static inline TaskHandle_t mqttTaskHandle;
+    
 
     [[noreturn]] static void mqttManagerLoop();
 
     static inline  std::vector<PeriodicPublish> periodicPublishes;
+    static void publish(const char *topic, const String &payload, uint8_t qos = 0);
 
 public:
     MqttManager() = delete;
@@ -49,9 +55,8 @@ public:
     static void begin();
 
     static void registerCallback(const char *topic, const std::function<void(char *)> &callback);
-    static void registerPeriodicPublish(unsigned long delay, const std::function<void()> &callback);
+    static void registerPeriodicPublish(const String &topic,unsigned long delay, const std::function<String()> &callback);
 
-    static void publish(const char *topic, const String &payload, uint8_t qos = 0);
 };
 
 
