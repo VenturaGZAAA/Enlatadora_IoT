@@ -149,6 +149,11 @@ void setup() {
         CanningMachine::processCommands("stop");
         EvenTheRGBLedHasManagers::setColor(RGBColor(255, 0, 255), 1000);
     });
+    VoiceKeywordModule::registerKeyword("pause", []() {
+        CanningMachine::processCommands("pause");
+        EvenTheRGBLedHasManagers::setColor(RGBColor(156, 156, 0), 1000);
+    });
+
 
 
     // --- 7. Canning Machine Logic & Startup Completion ---

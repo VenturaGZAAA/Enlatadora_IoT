@@ -24,19 +24,73 @@ void MqttManager::registerCallback(const char *topic, const std::function<void(c
 
 void MqttManager::registerPeriodicPublish(const String &topic, const unsigned long delay,
                                           const std::function<String()> &callback) {
-    periodicPublishes.emplace_back(topic, delay, callback);
+    if (!periodicMutex) {
+        periodicMutex = xSemaphoreCreateMutex();
+    }
+    if (periodicMutex && xSemaphoreTake(periodicMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
+        periodicPublishes.emplace_back(topic, delay, callback);
+        xSemaphoreGive(periodicMutex);
+    } else {
+        periodicPublishes.emplace_back(topic, delay, callback);
+    }
 }
 
+void MqttManager::publish(const String &topic, const String &payload, const uint8_t qos, const bool retain) {
+    if (!publishMutex) {
+        publishMutex = xSemaphoreCreateMutex();
+    }
+    if (publishMutex && xSemaphoreTake(publishMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
+        if (publishQueue.size() < 100) {
+            publishQueue.push({topic, payload, qos, retain});
+        }
+        xSemaphoreGive(publishMutex);
+    }
+}
 
-void MqttManager::publish(const char *topic, const String &payload, const uint8_t qos) {
-    mqtt.publish(topic, payload, qos);
+void MqttManager::publish(const char *topic, const String &payload, const uint8_t qos, const bool retain) {
+    publish(String(topic), payload, qos, retain);
+}
+
+void MqttManager::publish(const char *topic, const char *payload, const uint8_t qos, const bool retain) {
+    publish(String(topic), String(payload), qos, retain);
+}
+
+void MqttManager::publish(const String &topic, const char *payload, const uint8_t qos, const bool retain) {
+    publish(topic, String(payload), qos, retain);
+}
+
+void MqttManager::processPublishQueue() {
+    if (!publishMutex) return;
+    if (xSemaphoreTake(publishMutex, pdMS_TO_TICKS(20)) == pdTRUE) {
+        while (!publishQueue.empty()) {
+            const auto &msg = publishQueue.front();
+            mqtt.publish(msg.topic, msg.payload, msg.qos, msg.retain);
+            publishQueue.pop();
+        }
+        xSemaphoreGive(publishMutex);
+    }
 }
 
 void MqttManager::setup() {
+    if (!publishMutex) {
+        publishMutex = xSemaphoreCreateMutex();
+    }
+    if (!periodicMutex) {
+        periodicMutex = xSemaphoreCreateMutex();
+    }
     mqtt.begin();
 }
 
 void MqttManager::begin() {
+    if (mqttTaskHandle != nullptr) {
+        return;
+    }
+    if (!publishMutex) {
+        publishMutex = xSemaphoreCreateMutex();
+    }
+    if (!periodicMutex) {
+        periodicMutex = xSemaphoreCreateMutex();
+    }
     xTaskCreatePinnedToCore(
         reinterpret_cast<TaskFunction_t>(mqttManagerLoop),
         "MQTT_manager_loop",
@@ -51,16 +105,23 @@ void MqttManager::begin() {
 [[noreturn]] void MqttManager::mqttManagerLoop() {
     unsigned long lastWatchdogFeed = millis();
 
-
     while (true) {
         mqtt.loop();
-        for (auto &publisher: periodicPublishes) {
-            if (publisher.isTime()) {
-                // publish(publisher.getTopic().c_str(),publisher.execute());
-                mqtt.publish(publisher.getTopic(), publisher.getPayload());
-                publisher.resetTime();
+
+        // Process queued dynamic publish requests
+        processPublishQueue();
+
+        // Process periodic telemetry publishers
+        if (periodicMutex && xSemaphoreTake(periodicMutex, pdMS_TO_TICKS(10)) == pdTRUE) {
+            for (auto &publisher: periodicPublishes) {
+                if (publisher.isTime()) {
+                    mqtt.publish(publisher.getTopic(), publisher.getPayload());
+                    publisher.resetTime();
+                }
             }
+            xSemaphoreGive(periodicMutex);
         }
+
         if (millis() - lastWatchdogFeed > 100) {
             esp_task_wdt_reset();
             lastWatchdogFeed = millis();
