@@ -9,6 +9,8 @@
 #include <secrets.h>
 #include <build_flags.h>
 
+#include "EvenTheRGBLedHasManagers.h"
+
 
 void CanningMachine::setup() {
     configurePins();
@@ -225,6 +227,16 @@ CanningMachine::Commands CanningMachine::commandFromString(const String &str) {
 
 void CanningMachine::processCommand(const Commands command) {
     switch (command) {
+        case Commands::Stop:
+            EvenTheRGBLedHasManagers::setColor(RGBColor(255, 0, 0),1000);
+            allOff();
+            break;
+        case Commands::Pause:
+            EvenTheRGBLedHasManagers::setColor(RGBColor(255, 0, 255),1000);
+            break;
+        case Commands::Start:
+            EvenTheRGBLedHasManagers::setColor(RGBColor(0, 255, 0),1000);
+            break;
         default:
             break;
     }
