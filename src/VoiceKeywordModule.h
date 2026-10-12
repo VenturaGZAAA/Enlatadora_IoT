@@ -70,6 +70,8 @@ public:
 
     static void begin();
 
+    static void processCommands(const char *command);
+
     static void registerKeyword(const String &keyword, std::function<void()> callback);
 
     static bool isListening() { return listening; };

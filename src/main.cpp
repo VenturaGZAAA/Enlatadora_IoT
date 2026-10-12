@@ -53,15 +53,7 @@ void setup() {
     SerialManager::registerJsonCallback(CanningMachine::inputsWriteJsonCallback);
     SerialManager::registerJsonCallback(CanningMachine::outputsWriteJsonCallback);
     SerialManager::registerCallback(CanningMachine::processCommands);
-    SerialManager::registerCallback([](const char *payload) {
-        if (const auto msg = String(payload); msg == "voiceOn") {
-            VoiceKeywordModule::begin();
-            EvenTheRGBLedHasManagers::setColor(RGBColor(0, 12, 128));
-        } else if (msg == "voiceOff") {
-            VoiceKeywordModule::stop();
-            EvenTheRGBLedHasManagers::setColor(RGBColor(0, 0, 0));
-        }
-    });
+    SerialManager::registerCallback(VoiceKeywordModule::processCommands);
 
     // --- 3. Network Connection (Wi-Fi) ---
     // Connect to configured Wi-Fi network; restart system if configuration/connection fails.
@@ -95,6 +87,8 @@ void setup() {
         }
     });
 
+    MqttManager::registerCallback("voice/keyword/command", VoiceKeywordModule::processCommands);
+
     // MQTT Subscription: Direct remote actuation / manual output control via JSON.
     MqttManager::registerCallback("machine/IO/outputs/write", [](const char *payload) {
         JsonDocument doc;
@@ -121,18 +115,22 @@ void setup() {
     });
 #endif
 
+
+
     // MQTT Subscription: High-level operational commands (Start, Stop, Pause, etc.).
     MqttManager::registerCallback("machine/command", CanningMachine::processCommands);
 
     // --- 5. Periodic Telemetry Publishing ---
     // Publish Wi-Fi status every 5 seconds.
-    MqttManager::registerPeriodicPublish("config/wifi/state", 5000, WifiManager::getSerializedState);
+    MqttManager::registerPeriodicPublish("config/wifi/state", 3000, WifiManager::getSerializedState);
     // Publish overall canning machine state every 1 second.
     MqttManager::registerPeriodicPublish("machine/state/read", 1000, CanningMachine::getSerializedState);
     // Stream real-time output and input pin states every 200 ms.
     MqttManager::registerPeriodicPublish("machine/IO/outputs/read", 200, CanningMachine::getJsonOutputs);
     MqttManager::registerPeriodicPublish("machine/IO/inputs/read", 200, CanningMachine::getJsonInputs);
-
+    MqttManager::registerPeriodicPublish("voice/keyword/listening", 200, [] {
+        return String(VoiceKeywordModule::isListening());
+    });
     // Start background MQTT networking tasks.
     MqttManager::begin();
 

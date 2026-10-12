@@ -6,6 +6,7 @@
 #include <secrets.h>
 #include <utility>
 
+#include "EvenTheRGBLedHasManagers.h"
 #include "SerialManager.h"
 
 QueueHandle_t VoiceKeywordModule::audioQueue = nullptr;
@@ -79,6 +80,16 @@ void VoiceKeywordModule::begin() {
     );
     listening = true;
     SerialManager::enqueueLine("[Voice] Voice keyword module started");
+}
+
+void VoiceKeywordModule::processCommands(const char *command) {
+    if (const auto msg = String(command); msg == "voiceOn") {
+        begin();
+        EvenTheRGBLedHasManagers::setColor(RGBColor(0, 12, 128));
+    } else if (msg == "voiceOff") {
+        stop();
+        EvenTheRGBLedHasManagers::setColor(RGBColor(0, 0, 0));
+    }
 }
 
 // ─────────────────────────────────────────────────────────────
