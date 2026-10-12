@@ -57,6 +57,9 @@ void setup() {
        if (String(payload) == "voiceOn") {
            VoiceKeywordModule::begin();
            EvenTheRGBLedHasManagers::setColor(RGBColor(0, 12,128));
+       } else if (String(payload) == "voiceOff") {
+           VoiceKeywordModule::stop();
+           EvenTheRGBLedHasManagers::setColor(RGBColor(0, 0, 0));
        }
     });
 
@@ -67,7 +70,7 @@ void setup() {
         ESP.restart();
     }
 
-    delay(150);
+    delay(500);
 
     // --- 4. MQTT Broker & Communication Setup ---
     MqttManager::setup();

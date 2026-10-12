@@ -61,6 +61,14 @@ void VoiceKeywordModule::init() {
 // Start tasks — call from setup() after WifiManager::setup()
 // ─────────────────────────────────────────────────────────────
 void VoiceKeywordModule::begin() {
+    if (captureTaskHandle != nullptr || uploadTaskHandle != nullptr) {
+        SerialManager::enqueueLine("[Voice] Tasks already running");
+        return;
+    }
+    if (!audioQueue) {
+        audioQueue = xQueueCreate(AUDIO_QUEUE_LENGTH, AUDIO_QUEUE_ITEM_SIZE);
+    }
+    i2s_start(I2S_PORT);
     xTaskCreatePinnedToCore(
         captureTask, "VoiceCapture",
         8192, nullptr, 5, &captureTaskHandle, 1 // Core 1 — audio capture
@@ -69,17 +77,45 @@ void VoiceKeywordModule::begin() {
         uploadTask, "VoiceUpload",
         16384, nullptr, 4, &uploadTaskHandle, 0 // Core 0 — network upload
     );
+    SerialManager::enqueueLine("[Voice] Voice keyword module started");
 }
 
 // ─────────────────────────────────────────────────────────────
-// Task 1: Capture 6-second audio chunks
+// Stop tasks — safely terminate capture/upload and release queue buffers
+// ─────────────────────────────────────────────────────────────
+void VoiceKeywordModule::stop() {
+    if (captureTaskHandle != nullptr) {
+        vTaskDelete(captureTaskHandle);
+        captureTaskHandle = nullptr;
+    }
+    if (uploadTaskHandle != nullptr) {
+        vTaskDelete(uploadTaskHandle);
+        uploadTaskHandle = nullptr;
+    }
+
+    // Drain queue and free pending buffers to prevent memory leaks
+    if (audioQueue != nullptr) {
+        AudioChunk chunk{};
+        while (xQueueReceive(audioQueue, &chunk, 0) == pdPASS) {
+            if (chunk.data) {
+                free(chunk.data);
+            }
+        }
+    }
+
+    i2s_stop(I2S_PORT);
+    SerialManager::enqueueLine("[Voice] Module stopped safely");
+}
+
+// ─────────────────────────────────────────────────────────────
+// Task 1: Capture 5-second audio chunks
 // ─────────────────────────────────────────────────────────────
 void VoiceKeywordModule::captureTask(void *param) {
     constexpr size_t DMA_READ_SAMPLES = 256;
     int32_t rawSamples[DMA_READ_SAMPLES];
 
     while (true) {
-        // Allocate buffer for 6 seconds of 16-bit mono audio
+        // Allocate buffer for 5 seconds of 16-bit mono audio
         auto *buffer = static_cast<int16_t *>(heap_caps_malloc(BUFFER_SIZE, MALLOC_CAP_SPIRAM));
         if (!buffer) {
             buffer = static_cast<int16_t *>(malloc(BUFFER_SIZE)); // fallback to internal RAM
@@ -133,6 +169,7 @@ void VoiceKeywordModule::captureTask(void *param) {
         }
 
         // DC offset compensation and audio level calculation
+        int32_t rms = 0;
         if (totalSamples > 0) {
             const auto dcOffset = static_cast<int16_t>(sumSamples / totalSamples);
             int64_t sumSquares = 0;
@@ -140,9 +177,16 @@ void VoiceKeywordModule::captureTask(void *param) {
                 buffer[i] -= dcOffset;
                 sumSquares += static_cast<int64_t>(buffer[i]) * buffer[i];
             }
-            const auto rms = static_cast<int32_t>(sqrt(static_cast<double>(sumSquares) / totalSamples));
+            rms = static_cast<int32_t>(sqrt(static_cast<double>(sumSquares) / totalSamples));
             SerialManager::enqueueLine("[Voice] Chunk captured (" + String(totalSamples) + " samples) | Peak: [" +
                                        String(minSample) + ".." + String(maxSample) + "] | RMS: " + String(rms));
+        }
+
+        // Avoid uploading silent chunks: save network bandwidth, CPU time, and API usage
+        if (rms < RMS_THRESHOLD) {
+            SerialManager::enqueueLine("[Voice] RMS below threshold (" + String(rms) + " < " + String(RMS_THRESHOLD) + ") — skipping upload");
+            free(buffer);
+            continue;
         }
 
         AudioChunk chunk = {
@@ -155,7 +199,7 @@ void VoiceKeywordModule::captureTask(void *param) {
             SerialManager::enqueueLine("[Voice] Queue full — dropping chunk");
             free(buffer);
         }
-        // No delay — immediately begin next 6-second capture
+        // No delay — immediately begin next 5-second capture
     }
 }
 
@@ -218,15 +262,13 @@ void VoiceKeywordModule::uploadTask(void *param) {
         WiFiClientSecure client;
         client.setInsecure(); // Skip certificate verification for Groq API endpoint
 
-        HTTPClient http;
-        if (http.begin(client, GROQ_API_URL)) {
+        if (HTTPClient http; http.begin(client, GROQ_API_URL)) {
             http.setTimeout(30000); // 30 s max for API response
             http.addHeader("Authorization", String("Bearer ") + GROQ_API_KEY);
             http.addHeader("Content-Type", "multipart/form-data; boundary=" + boundary);
             http.addHeader("language", "en");
 
-            const int httpCode = http.POST(payload, totalPayloadSize);
-            if (httpCode == HTTP_CODE_OK) {
+            if (const int httpCode = http.POST(payload, totalPayloadSize); httpCode == HTTP_CODE_OK) {
                 const String responsePayload = http.getString();
                 JsonDocument doc;
                 const DeserializationError err = deserializeJson(doc, responsePayload);
