@@ -75,7 +75,8 @@ void VoiceKeywordModule::begin() {
 // Task 1: Capture 6-second audio chunks
 // ─────────────────────────────────────────────────────────────
 void VoiceKeywordModule::captureTask(void *param) {
-    size_t bytesRead = 0;
+    constexpr size_t DMA_READ_SAMPLES = 256;
+    int32_t rawSamples[DMA_READ_SAMPLES];
 
     while (true) {
         // Allocate buffer for 6 seconds of 16-bit mono audio
@@ -89,15 +90,20 @@ void VoiceKeywordModule::captureTask(void *param) {
             continue;
         }
 
-        size_t totalRead = 0;
-        constexpr size_t targetBytes = BUFFER_SIZE;
+        size_t totalSamples = 0;
+        int16_t maxSample = INT16_MIN;
+        int16_t minSample = INT16_MAX;
+        int64_t sumSamples = 0;
 
-        // Read continuously for 6 seconds
-        while (totalRead < targetBytes) {
+        // Read 32-bit samples from I2S and downscale to 16-bit PCM
+        while (totalSamples < NUM_SAMPLES) {
+            size_t bytesRead = 0;
+            const size_t toReadSamples = std::min(DMA_READ_SAMPLES, NUM_SAMPLES - totalSamples);
+
             const esp_err_t err = i2s_read(
                 I2S_PORT,
-                reinterpret_cast<uint8_t *>(buffer) + totalRead,
-                targetBytes - totalRead,
+                rawSamples,
+                toReadSamples * sizeof(int32_t),
                 &bytesRead,
                 portMAX_DELAY
             );
@@ -105,12 +111,43 @@ void VoiceKeywordModule::captureTask(void *param) {
                 SerialManager::enqueueLine("[Voice] I2S read error: " + std::to_string(err));
                 break;
             }
-            totalRead += bytesRead;
+
+            const size_t samplesRead = bytesRead / sizeof(int32_t);
+            for (size_t i = 0; i < samplesRead; i++) {
+                // INMP441 outputs 24-bit MSB-aligned data in 32-bit slot.
+                // Shifting right by 14 applies +12dB digital gain to boost typical speech volume.
+                int32_t val = rawSamples[i] >> 14;
+
+                // Clamp to 16-bit signed integer range
+                if (val > 32767) val = 32767;
+                if (val < -32768) val = -32768;
+
+                const auto sample16 = static_cast<int16_t>(val);
+                buffer[totalSamples + i] = sample16;
+
+                if (sample16 > maxSample) maxSample = sample16;
+                if (sample16 < minSample) minSample = sample16;
+                sumSamples += sample16;
+            }
+            totalSamples += samplesRead;
+        }
+
+        // DC offset compensation and audio level calculation
+        if (totalSamples > 0) {
+            const auto dcOffset = static_cast<int16_t>(sumSamples / totalSamples);
+            int64_t sumSquares = 0;
+            for (size_t i = 0; i < totalSamples; i++) {
+                buffer[i] -= dcOffset;
+                sumSquares += static_cast<int64_t>(buffer[i]) * buffer[i];
+            }
+            const auto rms = static_cast<int32_t>(sqrt(static_cast<double>(sumSquares) / totalSamples));
+            SerialManager::enqueueLine("[Voice] Chunk captured (" + String(totalSamples) + " samples) | Peak: [" +
+                                       String(minSample) + ".." + String(maxSample) + "] | RMS: " + String(rms));
         }
 
         AudioChunk chunk = {
             .data = buffer,
-            .length = totalRead / sizeof(int16_t) // samples, not bytes
+            .length = totalSamples // number of 16-bit samples
         };
 
         // Push to queue — blocks if full (backpressure)
@@ -134,12 +171,48 @@ void VoiceKeywordModule::uploadTask(void *param) {
             continue;
         }
 
-        // ── Build multipart/form-data body ──
+        const size_t audioBytes = chunk.length * sizeof(int16_t);
         const String boundary = "----ESP32Boundary7MA4YWxkTrZu0gW";
-        const String body = buildMultipartBody(reinterpret_cast<uint8_t *>(chunk.data),
-                                         chunk.length * sizeof(int16_t));
 
-        // Free the audio buffer as soon as the body is built
+        const String headPart = "--" + boundary + "\r\n"
+                                "Content-Disposition: form-data; name=\"file\"; filename=\"audio.wav\"\r\n"
+                                "Content-Type: audio/wav\r\n\r\n";
+
+        const String tailPart = "\r\n--" + boundary + "\r\n"
+                                "Content-Disposition: form-data; name=\"model\"\r\n\r\n"
+                                + String(GROQ_MODEL) +
+                                "\r\n--" + boundary + "--\r\n";
+
+        uint8_t wavHeader[44];
+        createWavHeader(wavHeader, audioBytes, SAMPLE_RATE, 1, 16);
+
+        const size_t totalPayloadSize = headPart.length() + 44 + audioBytes + tailPart.length();
+
+        auto *payload = static_cast<uint8_t *>(heap_caps_malloc(totalPayloadSize, MALLOC_CAP_SPIRAM));
+        if (!payload) {
+            payload = static_cast<uint8_t *>(malloc(totalPayloadSize));
+        }
+
+        if (!payload) {
+            SerialManager::enqueueLine("[Voice] Failed to allocate upload buffer");
+            free(chunk.data);
+            continue;
+        }
+
+        size_t offset = 0;
+        memcpy(payload + offset, headPart.c_str(), headPart.length());
+        offset += headPart.length();
+
+        memcpy(payload + offset, wavHeader, 44);
+        offset += 44;
+
+        memcpy(payload + offset, chunk.data, audioBytes);
+        offset += audioBytes;
+
+        memcpy(payload + offset, tailPart.c_str(), tailPart.length());
+        offset += tailPart.length();
+
+        // Free the raw audio buffer as soon as payload is assembled
         free(chunk.data);
 
         WiFiClientSecure client;
@@ -150,12 +223,13 @@ void VoiceKeywordModule::uploadTask(void *param) {
             http.setTimeout(30000); // 30 s max for API response
             http.addHeader("Authorization", String("Bearer ") + GROQ_API_KEY);
             http.addHeader("Content-Type", "multipart/form-data; boundary=" + boundary);
+            http.addHeader("language", "en");
 
-            const int httpCode = http.POST(reinterpret_cast<uint8_t *>(const_cast<char *>(body.c_str())), body.length());
+            const int httpCode = http.POST(payload, totalPayloadSize);
             if (httpCode == HTTP_CODE_OK) {
-                const String payload = http.getString();
+                const String responsePayload = http.getString();
                 JsonDocument doc;
-                const DeserializationError err = deserializeJson(doc, payload);
+                const DeserializationError err = deserializeJson(doc, responsePayload);
                 if (err) {
                     SerialManager::enqueueLine("[Voice] JSON parse error: " + String(err.c_str()));
                 } else {
@@ -164,69 +238,67 @@ void VoiceKeywordModule::uploadTask(void *param) {
                     if (transcript.isEmpty()) {
                         SerialManager::enqueueLine("[Voice] Empty transcript (silence)");
                     } else {
-                        SerialManager::enqueueLine("[Voice] Transcript: " + transcript);
+                        SerialManager::enqueueLine("[Voice] Transcript: \"" + transcript + "\"");
                         processTranscript(transcript);
                     }
                 }
             } else {
-                SerialManager::enqueueLine("[Voice] Groq API error: " + String(httpCode));
+                const String errResponse = http.getString();
+                SerialManager::enqueueLine("[Voice] Groq API error: " + String(httpCode) + " - " + errResponse);
             }
             http.end();
         } else {
             SerialManager::enqueueLine("[Voice] Failed to begin HTTP request");
         }
 
+        free(payload);
         vTaskDelay(pdMS_TO_TICKS(100)); // brief yield before next chunk
     }
 }
 
 // ─────────────────────────────────────────────────────────────
-// Build multipart/form-data body for Groq Whisper endpoint
+// Build WAV Header (44 bytes canonical PCM)
 // ─────────────────────────────────────────────────────────────
-String VoiceKeywordModule::buildMultipartBody(
-    const uint8_t *audioData, const size_t audioLen) {
-    const String boundary = "----ESP32Boundary7MA4YWxkTrZu0gW";
-    String body;
-
-    // Part 1: file
-    body += "--" + boundary + "\r\n";
-    body += "Content-Disposition: form-data; name=\"file\"; "
-            "filename=\"audio.wav\"\r\n";
-    body += "Content-Type: audio/wav\r\n\r\n";
-
-    // Minimal WAV header (44 bytes) so Groq recognises the format
-    uint8_t wavHeader[44] = {
-        'R', 'I', 'F', 'F', // ChunkID
-        0, 0, 0, 0, // ChunkSize (patched below)
-        'W', 'A', 'V', 'E', // Format
-        'f', 'm', 't', ' ', // Subchunk1ID
-        16, 0, 0, 0, // Subchunk1Size (16 for PCM)
-        1, 0, // AudioFormat (1 = PCM)
-        1, 0, // NumChannels (1 = mono)
-        0x80, 0x3E, 0, 0, // SampleRate (16000 = 0x3E80)
-        0x00, 0x7D, 0, 0, // ByteRate (16000 * 1 * 2 = 32000 = 0x7D00)
-        2, 0, // BlockAlign (1 * 2 = 2)
-        16, 0, // BitsPerSample (16)
-        'd', 'a', 't', 'a', // Subchunk2ID
-        0, 0, 0, 0 // Subchunk2Size (patched below)
-    };
-
-    const uint32_t dataSize = audioLen;
+void VoiceKeywordModule::createWavHeader(
+    uint8_t *header, const uint32_t dataSize, const uint32_t sampleRate,
+    const uint16_t numChannels, const uint16_t bitsPerSample) {
+    const uint32_t byteRate = sampleRate * numChannels * (bitsPerSample / 8);
+    const uint16_t blockAlign = numChannels * (bitsPerSample / 8);
     const uint32_t chunkSize = 36 + dataSize;
-    memcpy(&wavHeader[4], &chunkSize, 4);
-    memcpy(&wavHeader[40], &dataSize, 4);
 
-    // Append WAV header + raw PCM
-    body.concat(reinterpret_cast<const char *>(wavHeader), 44);
-    body.concat(reinterpret_cast<const char *>(audioData), audioLen);
+    // RIFF Chunk Descriptor
+    header[0] = 'R'; header[1] = 'I'; header[2] = 'F'; header[3] = 'F';
+    header[4] = static_cast<uint8_t>(chunkSize & 0xFF);
+    header[5] = static_cast<uint8_t>((chunkSize >> 8) & 0xFF);
+    header[6] = static_cast<uint8_t>((chunkSize >> 16) & 0xFF);
+    header[7] = static_cast<uint8_t>((chunkSize >> 24) & 0xFF);
+    header[8] = 'W'; header[9] = 'A'; header[10] = 'V'; header[11] = 'E';
 
-    // Part 2: model
-    body += "\r\n--" + boundary + "\r\n";
-    body += "Content-Disposition: form-data; name=\"model\"\r\n\r\n";
-    body += GROQ_MODEL;
-    body += "\r\n--" + boundary + "--\r\n";
+    // "fmt " Sub-chunk
+    header[12] = 'f'; header[13] = 'm'; header[14] = 't'; header[15] = ' ';
+    header[16] = 16; header[17] = 0; header[18] = 0; header[19] = 0; // Subchunk1Size (16 for PCM)
+    header[20] = 1; header[21] = 0; // AudioFormat (1 = PCM)
+    header[22] = static_cast<uint8_t>(numChannels & 0xFF);
+    header[23] = static_cast<uint8_t>((numChannels >> 8) & 0xFF);
+    header[24] = static_cast<uint8_t>(sampleRate & 0xFF);
+    header[25] = static_cast<uint8_t>((sampleRate >> 8) & 0xFF);
+    header[26] = static_cast<uint8_t>((sampleRate >> 16) & 0xFF);
+    header[27] = static_cast<uint8_t>((sampleRate >> 24) & 0xFF);
+    header[28] = static_cast<uint8_t>(byteRate & 0xFF);
+    header[29] = static_cast<uint8_t>((byteRate >> 8) & 0xFF);
+    header[30] = static_cast<uint8_t>((byteRate >> 16) & 0xFF);
+    header[31] = static_cast<uint8_t>((byteRate >> 24) & 0xFF);
+    header[32] = static_cast<uint8_t>(blockAlign & 0xFF);
+    header[33] = static_cast<uint8_t>((blockAlign >> 8) & 0xFF);
+    header[34] = static_cast<uint8_t>(bitsPerSample & 0xFF);
+    header[35] = static_cast<uint8_t>((bitsPerSample >> 8) & 0xFF);
 
-    return body;
+    // "data" Sub-chunk
+    header[36] = 'd'; header[37] = 'a'; header[38] = 't'; header[39] = 'a';
+    header[40] = static_cast<uint8_t>(dataSize & 0xFF);
+    header[41] = static_cast<uint8_t>((dataSize >> 8) & 0xFF);
+    header[42] = static_cast<uint8_t>((dataSize >> 16) & 0xFF);
+    header[43] = static_cast<uint8_t>((dataSize >> 24) & 0xFF);
 }
 
 // ─────────────────────────────────────────────────────────────

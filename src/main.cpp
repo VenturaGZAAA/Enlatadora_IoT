@@ -56,7 +56,7 @@ void setup() {
     SerialManager::registerCallback([](const char *payload) {
        if (String(payload) == "voiceOn") {
            VoiceKeywordModule::begin();
-           EvenTheRGBLedHasManagers::setColor(RGBColor(212, 128, 56));
+           EvenTheRGBLedHasManagers::setColor(RGBColor(0, 12,128));
        }
     });
 
@@ -139,12 +139,12 @@ void setup() {
     // Register keyword → event handlers
     VoiceKeywordModule::registerKeyword("start", []() {
         CanningMachine::processCommands("start");
-        EvenTheRGBLedHasManagers::setColor(RGBColor(0, 255, 0), 500);
+        EvenTheRGBLedHasManagers::setColor(RGBColor(0, 255, 0), 1000);
     });
 
     VoiceKeywordModule::registerKeyword("stop", []() {
         CanningMachine::processCommands("stop");
-        EvenTheRGBLedHasManagers::setColor(RGBColor(255, 0,255), 500);
+        EvenTheRGBLedHasManagers::setColor(RGBColor(255, 0,255), 1000);
     });
 
 

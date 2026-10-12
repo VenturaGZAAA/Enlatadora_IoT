@@ -24,10 +24,10 @@
 
 // --- Audio Parameters ---
 #define SAMPLE_RATE     16000       // 16 kHz — optimal for speech/Whisper
-#define BITS_PER_SAMPLE I2S_BITS_PER_SAMPLE_16BIT
+#define BITS_PER_SAMPLE I2S_BITS_PER_SAMPLE_32BIT // 32-bit slot required for INMP441
 #define RECORD_SECONDS  6
 #define NUM_SAMPLES     (SAMPLE_RATE * RECORD_SECONDS)  // 96,000 samples
-#define BUFFER_SIZE     (NUM_SAMPLES * sizeof(int16_t)) // 192,000 bytes
+#define BUFFER_SIZE     (NUM_SAMPLES * sizeof(int16_t)) // 192,000 bytes (16-bit PCM)
 
 // --- Groq API ---
 #define GROQ_API_URL    "https://api.groq.com/openai/v1/audio/transcriptions"
@@ -51,7 +51,7 @@ public:
 private:
     static void captureTask(void* param);
     static void uploadTask(void* param);
-    static String buildMultipartBody(const uint8_t* audioData, size_t audioLen);
+    static void createWavHeader(uint8_t* header, uint32_t dataSize, uint32_t sampleRate, uint16_t numChannels, uint16_t bitsPerSample);
     static void processTranscript(const String& transcript);
 
     static QueueHandle_t audioQueue;
