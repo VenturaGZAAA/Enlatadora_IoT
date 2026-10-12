@@ -17,16 +17,25 @@ class WifiManager {
     static IPAddress server_ip;
 
     static bool connectToNetwork();
+
     static bool startAccessPoint();
+
     static void setupMdns();
 
-    public:
+public:
     WifiManager() = delete;
-    static void addService(const char* serviceName, const char* serviceType,size_t port);
+
+    static void addService(const char *serviceName, const char *serviceType, size_t port);
+
     static void wifiConfigJsonCallback(const JsonDocument &doc);
+
     static bool setup();
+
+    static bool isStaConnected() { return sta_connected; }
+
     static IPAddress getServerIP();
-    static String getState();
+
+    static String getSerializedState();
 };
 
 

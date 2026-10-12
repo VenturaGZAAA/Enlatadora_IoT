@@ -50,11 +50,11 @@ void SerialManager::run() {
 
                 if (JsonDocument jsonDocument; !deserializeJson(jsonDocument, data)) {
                     Serial.println("Json document received");
-                    for (const auto &item : serialJsonCallbacks) {
+                    for (const auto &item: serialJsonCallbacks) {
                         item(jsonDocument);
                     }
                 } else {
-                    for (const auto &item : serialCallbacks) {
+                    for (const auto &item: serialCallbacks) {
                         item(data.c_str());
                     }
                 }
@@ -70,7 +70,8 @@ void SerialManager::run() {
 void SerialManager::enqueue(const std::string &message) {
     if (!queueMutex) return;
     if (xSemaphoreTake(queueMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
-        if (serialQueue.size() < 100) { // Limit queue to prevent unbounded RAM usage
+        if (serialQueue.size() < 100) {
+            // Limit queue to prevent unbounded RAM usage
             serialQueue.push(message);
         }
         xSemaphoreGive(queueMutex);
@@ -95,13 +96,14 @@ void SerialManager::enqueueLine(const String &message) {
     enqueue(message + "\r\n");
 }
 
-void SerialManager::enqueueLine(const char * str) {
+void SerialManager::enqueueLine(const char *str) {
     enqueue(str + String("\r\n"));
 }
 
-void SerialManager::registerCallback(const std::function<void(const char*)>& callback) {
+void SerialManager::registerCallback(const std::function<void(const char *)> &callback) {
     serialCallbacks.push_back(callback);
 }
-void SerialManager::registerJsonCallback(const std::function<void(JsonDocument)>& callback) {
+
+void SerialManager::registerJsonCallback(const std::function<void(JsonDocument)> &callback) {
     serialJsonCallbacks.push_back(callback);
 }

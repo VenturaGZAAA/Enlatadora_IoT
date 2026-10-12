@@ -39,32 +39,42 @@
 #define AUDIO_QUEUE_ITEM_SIZE sizeof(AudioChunk)
 
 struct AudioChunk {
-    int16_t* data;
-    size_t   length;  // number of samples
+    int16_t *data;
+    size_t length; // number of samples
 };
 
 class VoiceKeywordModule {
-public:
-    static void init();
-    static void begin();
-    static void registerKeyword(const String& keyword, std::function<void()> callback);
-    static void stop();
+    static void captureTask(void *param);
 
-private:
-    static void captureTask(void* param);
-    static void uploadTask(void* param);
-    static void createWavHeader(uint8_t* header, uint32_t dataSize, uint32_t sampleRate, uint16_t numChannels, uint16_t bitsPerSample);
-    static void processTranscript(const String& transcript);
+    static void uploadTask(void *param);
+
+    static void createWavHeader(uint8_t *header, uint32_t dataSize, uint32_t sampleRate, uint16_t numChannels,
+                                uint16_t bitsPerSample);
+
+    static void processTranscript(const String &transcript);
 
     static QueueHandle_t audioQueue;
-    static TaskHandle_t  captureTaskHandle;
-    static TaskHandle_t  uploadTaskHandle;
+    static TaskHandle_t captureTaskHandle;
+    static TaskHandle_t uploadTaskHandle;
+    static inline bool listening = false;
 
     struct KeywordEntry {
         String keyword;
         std::function<void()> callback;
     };
+
     static std::vector<KeywordEntry> keywords;
+
+public:
+    static void init();
+
+    static void begin();
+
+    static void registerKeyword(const String &keyword, std::function<void()> callback);
+
+    static bool isListening() { return listening; };
+
+    static void stop();
 };
 
 #endif //ENLATADORA_IOT_VOICEKEYWORDMODULE_H

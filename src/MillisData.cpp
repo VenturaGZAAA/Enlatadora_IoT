@@ -4,6 +4,7 @@
 
 #include "MillisData.h"
 #include <Arduino.h>
+
 void MillisData::reset() {
     lastTime = millis();
 }
@@ -11,4 +12,3 @@ void MillisData::reset() {
 bool MillisData::isTime() const {
     return millis() - lastTime >= delay;
 }
-

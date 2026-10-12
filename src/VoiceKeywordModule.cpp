@@ -77,6 +77,7 @@ void VoiceKeywordModule::begin() {
         uploadTask, "VoiceUpload",
         16384, nullptr, 4, &uploadTaskHandle, 0 // Core 0 — network upload
     );
+    listening = true;
     SerialManager::enqueueLine("[Voice] Voice keyword module started");
 }
 
@@ -104,6 +105,7 @@ void VoiceKeywordModule::stop() {
     }
 
     i2s_stop(I2S_PORT);
+    listening = false;
     SerialManager::enqueueLine("[Voice] Module stopped safely");
 }
 
@@ -184,7 +186,8 @@ void VoiceKeywordModule::captureTask(void *param) {
 
         // Avoid uploading silent chunks: save network bandwidth, CPU time, and API usage
         if (rms < RMS_THRESHOLD) {
-            SerialManager::enqueueLine("[Voice] RMS below threshold (" + String(rms) + " < " + String(RMS_THRESHOLD) + ") — skipping upload");
+            SerialManager::enqueueLine(
+                "[Voice] RMS below threshold (" + String(rms) + " < " + String(RMS_THRESHOLD) + ") — skipping upload");
             free(buffer);
             continue;
         }
@@ -309,17 +312,30 @@ void VoiceKeywordModule::createWavHeader(
     const uint32_t chunkSize = 36 + dataSize;
 
     // RIFF Chunk Descriptor
-    header[0] = 'R'; header[1] = 'I'; header[2] = 'F'; header[3] = 'F';
+    header[0] = 'R';
+    header[1] = 'I';
+    header[2] = 'F';
+    header[3] = 'F';
     header[4] = static_cast<uint8_t>(chunkSize & 0xFF);
     header[5] = static_cast<uint8_t>((chunkSize >> 8) & 0xFF);
     header[6] = static_cast<uint8_t>((chunkSize >> 16) & 0xFF);
     header[7] = static_cast<uint8_t>((chunkSize >> 24) & 0xFF);
-    header[8] = 'W'; header[9] = 'A'; header[10] = 'V'; header[11] = 'E';
+    header[8] = 'W';
+    header[9] = 'A';
+    header[10] = 'V';
+    header[11] = 'E';
 
     // "fmt " Sub-chunk
-    header[12] = 'f'; header[13] = 'm'; header[14] = 't'; header[15] = ' ';
-    header[16] = 16; header[17] = 0; header[18] = 0; header[19] = 0; // Subchunk1Size (16 for PCM)
-    header[20] = 1; header[21] = 0; // AudioFormat (1 = PCM)
+    header[12] = 'f';
+    header[13] = 'm';
+    header[14] = 't';
+    header[15] = ' ';
+    header[16] = 16;
+    header[17] = 0;
+    header[18] = 0;
+    header[19] = 0; // Subchunk1Size (16 for PCM)
+    header[20] = 1;
+    header[21] = 0; // AudioFormat (1 = PCM)
     header[22] = static_cast<uint8_t>(numChannels & 0xFF);
     header[23] = static_cast<uint8_t>((numChannels >> 8) & 0xFF);
     header[24] = static_cast<uint8_t>(sampleRate & 0xFF);
@@ -336,7 +352,10 @@ void VoiceKeywordModule::createWavHeader(
     header[35] = static_cast<uint8_t>((bitsPerSample >> 8) & 0xFF);
 
     // "data" Sub-chunk
-    header[36] = 'd'; header[37] = 'a'; header[38] = 't'; header[39] = 'a';
+    header[36] = 'd';
+    header[37] = 'a';
+    header[38] = 't';
+    header[39] = 'a';
     header[40] = static_cast<uint8_t>(dataSize & 0xFF);
     header[41] = static_cast<uint8_t>((dataSize >> 8) & 0xFF);
     header[42] = static_cast<uint8_t>((dataSize >> 16) & 0xFF);

@@ -25,12 +25,11 @@ void DashboardServer::setup() {
     SerialManager::enqueueLine("📀 Initializing SD card...");
     SPI.begin(SD_SCK, SD_MISO, SD_MOSI, SD_CS);
 
-   
+
     if (const SdSpiConfig cfg(SD_CS, SHARED_SPI, SD_SCK_MHZ(4), &SPI); !sd.begin(cfg)) {
         SerialManager::enqueueLine(" ❌ Card Mount Failed!");
         SPI.end();
-    }
-    else {
+    } else {
         mounted = true;
         SerialManager::enqueueLine("✅ SD card mounted");
         // Configure routes
@@ -38,30 +37,28 @@ void DashboardServer::setup() {
         server.onNotFound(handleFileRequest);
     }
 
-    server.on("/config/wifi/set",HTTP_POST, [](AsyncWebServerRequest *request) {
-        if (request->_tempObject == nullptr) {
-            request->send(200, "application/json", R"({"status":"success"})");
-        }
-        else {
-            const String errorMsg = *static_cast<String *>(request->_tempObject);
-            // delete static_cast<String *>(request->_tempObject);
+    server.on("/config/wifi/set", HTTP_POST, [](AsyncWebServerRequest *request) {
+                  if (request->_tempObject == nullptr) {
+                      request->send(200, "application/json", R"({"status":"success"})");
+                  } else {
+                      const String errorMsg = *static_cast<String *>(request->_tempObject);
+                      // delete static_cast<String *>(request->_tempObject);
 
-            const String responseJson = R"({"status":"error","message":")" + errorMsg + R"("})";
-            request->send(400, "application/json", responseJson);
-        }
-
-    },nullptr,[](AsyncWebServerRequest *request,uint8_t *data, size_t length, size_t,size_t) {
-        JsonDocument doc;
-        const DeserializationError error = deserializeJson(doc, data, length);
-        if (error) {
-            SerialManager::enqueue("Error parsing JSON for Wifi config on HTTP: ");
-            SerialManager::enqueueLine(error.c_str());
-            request->_tempObject = new String(error.c_str());
-            return;
-        }
-        WifiManager::wifiConfigJsonCallback(doc);
-        request->_tempObject = nullptr;
-    });
+                      const String responseJson = R"({"status":"error","message":")" + errorMsg + R"("})";
+                      request->send(400, "application/json", responseJson);
+                  }
+              }, nullptr, [](AsyncWebServerRequest *request, uint8_t *data, size_t length, size_t, size_t) {
+                  JsonDocument doc;
+                  const DeserializationError error = deserializeJson(doc, data, length);
+                  if (error) {
+                      SerialManager::enqueue("Error parsing JSON for Wifi config on HTTP: ");
+                      SerialManager::enqueueLine(error.c_str());
+                      request->_tempObject = new String(error.c_str());
+                      return;
+                  }
+                  WifiManager::wifiConfigJsonCallback(doc);
+                  request->_tempObject = nullptr;
+              });
 
     // Start server
     server.begin();
@@ -69,7 +66,7 @@ void DashboardServer::setup() {
     if (mounted) {
         SerialManager::enqueueLine("📍 Open http://" + WifiManager::getServerIP().toString() + " in your browser");
     }
-    WifiManager::addService("http","tcp",80);
+    WifiManager::addService("http", "tcp", 80);
 }
 
 bool DashboardServer::isMounted() {
@@ -82,17 +79,17 @@ void DashboardServer::handleFileRequest(AsyncWebServerRequest *request) {
     SerialManager::enqueueLine("Handling:\t" + path);
     if (path == "/" || path == "") {
         path = "/web/index.html";
-        EvenTheRGBLedHasManagers::setColor(RGBColor(200,200,0),250);
+        EvenTheRGBLedHasManagers::setColor(RGBColor(200, 200, 0), 250);
     } else {
         path = "/web" + path;
     }
 
-    const char* encoding = getEncoding(request);
+    const char *encoding = getEncoding(request);
     const bool hasEncoding = (encoding != nullptr);
 
 
     String filePath = path;
-    const char* contentEncoding = nullptr;
+    const char *contentEncoding = nullptr;
 
     if (hasEncoding) {
         if (strcmp(encoding, "br") == 0) {
@@ -122,7 +119,7 @@ void DashboardServer::handleFileRequest(AsyncWebServerRequest *request) {
     }
 
     AsyncWebServerResponse *response = request->beginChunkedResponse(
-        getContentType(path),   // MIME type based on original extension
+        getContentType(path), // MIME type based on original extension
         [file](uint8_t *buffer, const size_t maxLen, size_t) -> size_t {
             const size_t bytesRead = file->read(buffer, maxLen);
             if (bytesRead == 0) {
@@ -144,8 +141,8 @@ void DashboardServer::handleFileRequest(AsyncWebServerRequest *request) {
     request->send(response);
 
     SerialManager::enqueueLine("response sent");
-
 }
+
 void DashboardServer::handleFavicon(AsyncWebServerRequest *request) {
     request->send(204); // No content
 }

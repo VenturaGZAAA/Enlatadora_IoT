@@ -15,17 +15,16 @@ void EvenTheRGBLedHasManagers::init() {
 
 void EvenTheRGBLedHasManagers::setColor(const RGBColor color, const unsigned long t) {
     holdDuration = t;
-    if (t>0) {
+    if (t > 0) {
         holdColor = color;
         lastHoldTimestamp = millis();
-    }
-    else {
+    } else {
         persistentColor = color;
     }
 }
 
 void EvenTheRGBLedHasManagers::writeColor(const RGBColor &color) {
-    neopixelWrite(RGB_PIN,color.getR(),color.getG(),color.getB());
+    neopixelWrite(RGB_PIN, color.getR(), color.getG(), color.getB());
 }
 
 [[noreturn]] void EvenTheRGBLedHasManagers::loop() {
@@ -33,8 +32,7 @@ void EvenTheRGBLedHasManagers::writeColor(const RGBColor &color) {
         vTaskDelay(pdMS_TO_TICKS(50));
         if (lastHoldTimestamp + holdDuration > millis()) {
             writeColor(holdColor);
-        }
-        else {
+        } else {
             writeColor(persistentColor);
         }
     }

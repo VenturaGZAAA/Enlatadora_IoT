@@ -22,8 +22,9 @@ void MqttManager::registerCallback(const char *topic, const std::function<void(c
     mqtt.subscribe(topic, callback);
 }
 
-void MqttManager::registerPeriodicPublish(const String &topic,const unsigned long delay, const std::function<String()> &callback) {
-    periodicPublishes.emplace_back(PeriodicPublish(topic,delay, callback));
+void MqttManager::registerPeriodicPublish(const String &topic, const unsigned long delay,
+                                          const std::function<String()> &callback) {
+    periodicPublishes.emplace_back(topic, delay, callback);
 }
 
 
@@ -48,17 +49,15 @@ void MqttManager::begin() {
 }
 
 [[noreturn]] void MqttManager::mqttManagerLoop() {
-
-
     unsigned long lastWatchdogFeed = millis();
 
 
     while (true) {
         mqtt.loop();
-        for (auto &publisher : periodicPublishes) {
+        for (auto &publisher: periodicPublishes) {
             if (publisher.isTime()) {
                 // publish(publisher.getTopic().c_str(),publisher.execute());
-                mqtt.publish(publisher.getTopic(),publisher.getPayload());
+                mqtt.publish(publisher.getTopic(), publisher.getPayload());
                 publisher.resetTime();
             }
         }

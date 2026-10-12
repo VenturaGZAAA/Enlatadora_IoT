@@ -34,15 +34,15 @@ void setup() {
     Serial.printf("Free PSRAM:  %u bytes\n", ESP.getFreePsram());
     Serial.printf("Free Heap:   %u bytes\n", ESP.getFreeHeap());
     Serial.printf("Largest PSRAM block: %u bytes\n",
-        heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM));
+                  heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM));
     Serial.printf("Largest HEAP  block: %u bytes\n",
-        heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT));
+                  heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT));
 
     SerialManager::init();
 
     // Initialize status RGB LED and set to White during early boot sequence.
     EvenTheRGBLedHasManagers::init();
-    VoiceKeywordModule::init();   // I2S + queue (no network needed)
+    VoiceKeywordModule::init(); // I2S + queue (no network needed)
 
     delay(100);
     EvenTheRGBLedHasManagers::setColor(RGBColor(255, 255, 255), 250);
@@ -54,13 +54,13 @@ void setup() {
     SerialManager::registerJsonCallback(CanningMachine::outputsWriteJsonCallback);
     SerialManager::registerCallback(CanningMachine::processCommands);
     SerialManager::registerCallback([](const char *payload) {
-       if (String(payload) == "voiceOn") {
-           VoiceKeywordModule::begin();
-           EvenTheRGBLedHasManagers::setColor(RGBColor(0, 12,128));
-       } else if (String(payload) == "voiceOff") {
-           VoiceKeywordModule::stop();
-           EvenTheRGBLedHasManagers::setColor(RGBColor(0, 0, 0));
-       }
+        if (const auto msg = String(payload); msg == "voiceOn") {
+            VoiceKeywordModule::begin();
+            EvenTheRGBLedHasManagers::setColor(RGBColor(0, 12, 128));
+        } else if (msg == "voiceOff") {
+            VoiceKeywordModule::stop();
+            EvenTheRGBLedHasManagers::setColor(RGBColor(0, 0, 0));
+        }
     });
 
     // --- 3. Network Connection (Wi-Fi) ---
@@ -126,7 +126,7 @@ void setup() {
 
     // --- 5. Periodic Telemetry Publishing ---
     // Publish Wi-Fi status every 5 seconds.
-    MqttManager::registerPeriodicPublish("config/wifi/state", 5000, WifiManager::getState);
+    MqttManager::registerPeriodicPublish("config/wifi/state", 5000, WifiManager::getSerializedState);
     // Publish overall canning machine state every 1 second.
     MqttManager::registerPeriodicPublish("machine/state/read", 1000, CanningMachine::getSerializedState);
     // Stream real-time output and input pin states every 200 ms.
@@ -147,7 +147,7 @@ void setup() {
 
     VoiceKeywordModule::registerKeyword("stop", []() {
         CanningMachine::processCommands("stop");
-        EvenTheRGBLedHasManagers::setColor(RGBColor(255, 0,255), 1000);
+        EvenTheRGBLedHasManagers::setColor(RGBColor(255, 0, 255), 1000);
     });
 
 

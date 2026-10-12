@@ -101,7 +101,7 @@ bool WifiManager::setup() {
     return startAccessPoint();
 }
 
-String WifiManager::getState() {
+String WifiManager::getSerializedState() {
     JsonDocument jsonDoc;
     jsonDoc["start_ap"] = start_ap;
     jsonDoc["sta_connected"] = sta_connected;

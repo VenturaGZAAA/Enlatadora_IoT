@@ -15,8 +15,8 @@
 
 class SerialManager {
     static inline std::queue<std::string> serialQueue;
-    static inline std::vector<std::function<void(const char *)>> serialCallbacks;
-    static inline std::vector<std::function<void(JsonDocument)>> serialJsonCallbacks;
+    static inline std::vector<std::function<void(const char *)> > serialCallbacks;
+    static inline std::vector<std::function<void(JsonDocument)> > serialJsonCallbacks;
     static inline TaskHandle_t task = nullptr;
     static inline SemaphoreHandle_t queueMutex = nullptr;
     static inline String rxBuffer = "";
@@ -32,17 +32,20 @@ public:
     static void enqueueLine(const std::string &message);
 
     static void enqueue(const String &message);
+
     static void enqueueLine(const String &message);
 
-    static void enqueue(const char * str);
-    static void enqueueLine(const char * str);
+    static void enqueue(const char *str);
 
-    static void registerCallback(const std::function<void(const char*)>& callback);
-    static void registerJsonCallback(const std::function<void(JsonDocument)>& callback);
+    static void enqueueLine(const char *str);
+
+    static void registerCallback(const std::function<void(const char *)> &callback);
+
+    static void registerJsonCallback(const std::function<void(JsonDocument)> &callback);
+
     static void run();
+
     static void init(uint32_t _microsecondsDelay = 10);
-
-
 };
 
 
