@@ -204,8 +204,6 @@ void CanningMachine::processCommands(const char *command) {
         allowOutputOverride = true;
     } else if (cmd == "DisableOutputOverride") {
         allowOutputOverride = false;
-    } else {
-        SerialManager::enqueueLine("Command not recognized");
     }
 }
 

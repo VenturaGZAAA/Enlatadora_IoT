@@ -15,7 +15,10 @@
 
 void SerialManager::init(const uint32_t _microsecondsDelay) {
     period = _microsecondsDelay;
-    xTaskCreate(reinterpret_cast<TaskFunction_t>(loop), "SerialQueue", 2048, nullptr, 5, &task);
+    if (!queueMutex) {
+        queueMutex = xSemaphoreCreateMutex();
+    }
+    xTaskCreate(reinterpret_cast<TaskFunction_t>(loop), "SerialQueue", 8192, nullptr, 5, &task);
 }
 
 [[noreturn]] void SerialManager::loop() {
@@ -26,39 +29,62 @@ void SerialManager::init(const uint32_t _microsecondsDelay) {
 }
 
 void SerialManager::run() {
-   while (!serialQueue.empty()) {
-       Serial.print(serialQueue.front().data());
-       serialQueue.pop();
-   }
-    if (Serial.available() > 0) {
-        const auto data = Serial.readStringUntil('\r');
-        Serial.println("Serial data received: \t" + data);
-
-        if (JsonDocument jsonDocument; !deserializeJson(jsonDocument, data)) {
-            Serial.println("Json document received");
-            for (const auto &item : serialJsonCallbacks) {
-                item(jsonDocument);
-            }
+    // 1. Drain output queue safely under mutex protection
+    if (queueMutex && xSemaphoreTake(queueMutex, pdMS_TO_TICKS(20)) == pdTRUE) {
+        while (!serialQueue.empty()) {
+            Serial.print(serialQueue.front().c_str());
+            serialQueue.pop();
         }
-        else {
-            for (const auto &item : serialCallbacks) {
-                item(data.c_str());
+        xSemaphoreGive(queueMutex);
+    }
+
+    // 2. Non-blocking line assembly to handle \r, \n, and \r\n without 1000ms timeouts
+    while (Serial.available() > 0) {
+        char c = static_cast<char>(Serial.read());
+        if (c == '\r' || c == '\n') {
+            rxBuffer.trim();
+            if (!rxBuffer.isEmpty()) {
+                const String data = rxBuffer;
+                rxBuffer = "";
+                Serial.println("Serial data received: \t" + data);
+
+                if (JsonDocument jsonDocument; !deserializeJson(jsonDocument, data)) {
+                    Serial.println("Json document received");
+                    for (const auto &item : serialJsonCallbacks) {
+                        item(jsonDocument);
+                    }
+                } else {
+                    for (const auto &item : serialCallbacks) {
+                        item(data.c_str());
+                    }
+                }
+            }
+        } else {
+            if (rxBuffer.length() < 512) {
+                rxBuffer += c;
             }
         }
     }
 }
 
 void SerialManager::enqueue(const std::string &message) {
-    serialQueue.push(message);
+    if (!queueMutex) return;
+    if (xSemaphoreTake(queueMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
+        if (serialQueue.size() < 100) { // Limit queue to prevent unbounded RAM usage
+            serialQueue.push(message);
+        }
+        xSemaphoreGive(queueMutex);
+    }
 }
 
 void SerialManager::enqueue(const String &message) {
-    // std::string stdStr;
-   serialQueue.emplace(message.c_str());
+    enqueue(std::string(message.c_str()));
 }
 
 void SerialManager::enqueue(const char *str) {
-    serialQueue.emplace(str);
+    if (str) {
+        enqueue(std::string(str));
+    }
 }
 
 void SerialManager::enqueueLine(const std::string &message) {

@@ -6,12 +6,20 @@
 #define ENLATADORA_IOT_SERIALQUEUE_H
 #include <queue>
 #include <string>
+#include <vector>
+#include <functional>
 #include <ArduinoJson.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <freertos/semphr.h>
+
 class SerialManager {
     static inline std::queue<std::string> serialQueue;
     static inline std::vector<std::function<void(const char *)>> serialCallbacks;
     static inline std::vector<std::function<void(JsonDocument)>> serialJsonCallbacks;
-    static inline TaskHandle_t task;
+    static inline TaskHandle_t task = nullptr;
+    static inline SemaphoreHandle_t queueMutex = nullptr;
+    static inline String rxBuffer = "";
     static inline uint32_t period = 10;
 
     [[noreturn]] static void loop();
