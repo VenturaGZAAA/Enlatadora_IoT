@@ -138,20 +138,9 @@ void setup() {
     // Start local HTTP dashboard server for local monitoring and control.
     DashboardServer::setup();
     // Register keyword → event handlers
-    VoiceKeywordModule::registerKeyword("start", []() {
-        CanningMachine::processCommands("start");
-        EvenTheRGBLedHasManagers::setColor(RGBColor(0, 255, 0), 1000);
+    VoiceKeywordModule::registerKeyword(CanningMachine::allCom,[](const String& cmd) {
+        CanningMachine::processCommands(cmd.c_str());
     });
-
-    VoiceKeywordModule::registerKeyword("stop", []() {
-        CanningMachine::processCommands("stop");
-        EvenTheRGBLedHasManagers::setColor(RGBColor(255, 0, 255), 1000);
-    });
-    VoiceKeywordModule::registerKeyword("pause", []() {
-        CanningMachine::processCommands("pause");
-        EvenTheRGBLedHasManagers::setColor(RGBColor(156, 156, 0), 1000);
-    });
-
 
 
     // --- 7. Canning Machine Logic & Startup Completion ---

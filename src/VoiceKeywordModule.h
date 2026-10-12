@@ -59,11 +59,11 @@ class VoiceKeywordModule {
     static inline bool listening = false;
 
     struct KeywordEntry {
-        String keyword;
-        std::function<void()> callback;
+        std::vector<String> keywords;
+        std::function<void(String)> callback;
     };
 
-    static std::vector<KeywordEntry> keywords;
+    static std::vector<KeywordEntry> keywordSets;
 
 public:
     static void init();
@@ -72,7 +72,7 @@ public:
 
     static void processCommands(const char *command);
 
-    static void registerKeyword(const String &keyword, std::function<void()> callback);
+    static void registerKeyword(std::vector<String> keywords, std::function<void(String)> callback);
 
     static bool isListening() { return listening; };
 

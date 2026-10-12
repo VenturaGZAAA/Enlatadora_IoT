@@ -12,7 +12,7 @@
 QueueHandle_t VoiceKeywordModule::audioQueue = nullptr;
 TaskHandle_t VoiceKeywordModule::captureTaskHandle = nullptr;
 TaskHandle_t VoiceKeywordModule::uploadTaskHandle = nullptr;
-std::vector<VoiceKeywordModule::KeywordEntry> VoiceKeywordModule::keywords;
+std::vector<VoiceKeywordModule::KeywordEntry> VoiceKeywordModule::keywordSets;
 
 // ─────────────────────────────────────────────────────────────
 // I2S Initialization
@@ -377,21 +377,26 @@ void VoiceKeywordModule::createWavHeader(
 // Keyword matching — replace with your own event triggers
 // ─────────────────────────────────────────────────────────────
 void VoiceKeywordModule::registerKeyword(
-    const String &keyword, std::function<void()> callback) {
-    keywords.push_back({.keyword = keyword, .callback = std::move(callback)});
+    std::vector<String> keywords, std::function<void(String)> callback) {
+    keywordSets.push_back({.keywords = std::move(keywords), .callback = std::move(callback)});
 }
 
 void VoiceKeywordModule::processTranscript(const String &transcript) {
     String lower = transcript;
     lower.toLowerCase();
 
-    for (auto &entry: keywords) {
-        String kwLower = entry.keyword;
-        kwLower.toLowerCase();
-        if (lower.indexOf(kwLower) >= 0) {
-            SerialManager::enqueueLine("[Voice] Keyword matched: " +
-                                       entry.keyword);
-            if (entry.callback) entry.callback();
+    for (auto &[keywords, callback]: keywordSets) {
+        for (auto &keyword : keywords) {
+
+            String kwLower = keyword;
+            kwLower.toLowerCase();
+            if (lower.indexOf(kwLower) >= 0) {
+                SerialManager::enqueueLine("[Voice] Keyword matched: " +
+                                           keyword);
+                if (callback) callback(keyword);
+                break;
+            }
         }
+
     }
 }

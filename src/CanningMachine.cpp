@@ -205,6 +205,29 @@ void CanningMachine::processCommands(const char *command) {
     } else if (cmd == "DisableOutputOverride") {
         allowOutputOverride = false;
     }
+    else if (std::find(allCom.begin(), allCom.end(), cmd) != allCom.end()) {
+        processCommand(commandFromString(cmd));
+    }
+}
+
+CanningMachine::Commands CanningMachine::commandFromString(const String &str) {
+    if (std::find(stopCom.begin(),stopCom.end(), str) != stopCom.end()) {
+        return Commands::Stop;
+    }
+    if (std::find(pauseCom.begin(),pauseCom.end(), str) != pauseCom.end()) {
+        return Commands::Pause;
+    }
+    if (std::find(startCom.begin(),startCom.end(), str) != startCom.end()) {
+        return Commands::Start;
+    }
+    return Commands::Unknown;
+}
+
+void CanningMachine::processCommand(const Commands command) {
+    switch (command) {
+        default:
+            break;
+    }
 }
 
 void CanningMachine::updateAuthorization() {

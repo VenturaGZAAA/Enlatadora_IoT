@@ -7,6 +7,9 @@
 #include "SerialManager.h"
 
 void EvenTheRGBLedHasManagers::init() {
+    if (!ledMutex) {
+        ledMutex = xSemaphoreCreateMutex();
+    }
     if (loopHandle != nullptr) {
         return;
     }
@@ -14,12 +17,26 @@ void EvenTheRGBLedHasManagers::init() {
 }
 
 void EvenTheRGBLedHasManagers::setColor(const RGBColor color, const unsigned long t) {
-    holdDuration = t;
-    if (t > 0) {
-        holdColor = color;
-        lastHoldTimestamp = millis();
+    if (!ledMutex) {
+        ledMutex = xSemaphoreCreateMutex();
+    }
+    if (ledMutex && xSemaphoreTake(ledMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
+        if (t > 0) {
+            holdColor = color;
+            holdDuration = t;
+            lastHoldTimestamp = millis();
+        } else {
+            persistentColor = color;
+        }
+        xSemaphoreGive(ledMutex);
     } else {
-        persistentColor = color;
+        if (t > 0) {
+            holdColor = color;
+            holdDuration = t;
+            lastHoldTimestamp = millis();
+        } else {
+            persistentColor = color;
+        }
     }
 }
 
@@ -30,20 +47,46 @@ void EvenTheRGBLedHasManagers::writeColor(const RGBColor &color) {
 [[noreturn]] void EvenTheRGBLedHasManagers::loop() {
     while (true) {
         vTaskDelay(pdMS_TO_TICKS(50));
-        if (lastHoldTimestamp + holdDuration > millis()) {
-            writeColor(holdColor);
+        RGBColor activeColor;
+        if (ledMutex && xSemaphoreTake(ledMutex, pdMS_TO_TICKS(20)) == pdTRUE) {
+            if (lastHoldTimestamp + holdDuration > millis()) {
+                activeColor = holdColor;
+            } else {
+                activeColor = persistentColor;
+            }
+            xSemaphoreGive(ledMutex);
         } else {
-            writeColor(persistentColor);
+            if (lastHoldTimestamp + holdDuration > millis()) {
+                activeColor = holdColor;
+            } else {
+                activeColor = persistentColor;
+            }
         }
+        writeColor(activeColor);
     }
 }
 
 void EvenTheRGBLedHasManagers::stop() {
-    if (loopHandle != nullptr) {
-        vTaskDelete(loopHandle);
-        loopHandle = nullptr;
+    if (!ledMutex) {
+        ledMutex = xSemaphoreCreateMutex();
+    }
+    if (ledMutex && xSemaphoreTake(ledMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
+        if (loopHandle != nullptr) {
+            vTaskDelete(loopHandle);
+            loopHandle = nullptr;
+        }
+        holdColor = RGBColor();
+        persistentColor = RGBColor();
+        holdDuration = 0;
+        xSemaphoreGive(ledMutex);
+    } else {
+        if (loopHandle != nullptr) {
+            vTaskDelete(loopHandle);
+            loopHandle = nullptr;
+        }
         holdColor = RGBColor();
         persistentColor = RGBColor();
         holdDuration = 0;
     }
+    writeColor(RGBColor(0, 0, 0));
 }

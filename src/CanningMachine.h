@@ -12,6 +12,7 @@
 #include <freertos/task.h>
 #include <ArduinoJson.h>
 
+
 class CanningMachine {
     enum class Stage : uint8_t {
         Reposo = 0,
@@ -41,6 +42,15 @@ class CanningMachine {
         ActivarBanda3,
         ApagarBanda3YRepetir
     };
+
+    enum class Commands : uint8_t {
+        Stop = 0,
+        Start,
+        Pause,
+        Unknown
+    };
+
+    static Commands commandFromString(const String &str);
 
     static const char *stageName(Stage s);
 
@@ -85,8 +95,23 @@ class CanningMachine {
 
     static bool readInput(int index);
 
+    static void processCommand(Commands command);
+
+
 public:
     CanningMachine() = delete;
+
+    static const inline std::vector<String> stopCom = { "stop" ,"disable","detener","desactivar"};
+    static const inline std::vector<String> startCom = { "start" ,"enable","inicia","arranca"};
+    static const inline std::vector<String> pauseCom = { "pause" ,"emergency","emergencia","pausa"};
+
+    static const inline std::vector<String> allCom = [] {
+        std::vector v(stopCom);
+        v.insert(v.end(), startCom.begin(), startCom.end());
+        v.insert(v.end(), pauseCom.begin(), pauseCom.end());
+        return v;
+    }();
+
 
     static void setup();
 
@@ -103,6 +128,7 @@ public:
     static void inputsWriteJsonCallback(const JsonDocument &doc);
 
     static void outputsWriteJsonCallback(const JsonDocument &doc);
+
 
     static void processCommands(const char *command);
 

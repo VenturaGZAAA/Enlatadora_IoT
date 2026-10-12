@@ -5,7 +5,9 @@
 #ifndef ENLATADORA_IOT_EVENTHERGBLEDHASMANAGERS_H
 #define ENLATADORA_IOT_EVENTHERGBLEDHASMANAGERS_H
 #include <Arduino.h>
-
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <freertos/semphr.h>
 
 class RGBColor {
     uint8_t r;
@@ -44,6 +46,7 @@ class EvenTheRGBLedHasManagers {
     static constexpr uint8_t RGB_PIN = RGB_BUILTIN;
 
     static inline TaskHandle_t loopHandle = nullptr;
+    static inline SemaphoreHandle_t ledMutex = nullptr;
 
     [[noreturn]] static void loop();
 
