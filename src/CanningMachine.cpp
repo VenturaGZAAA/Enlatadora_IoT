@@ -257,12 +257,18 @@ void CanningMachine::setOnPauseCallback(std::function<void()> callback) {
 void CanningMachine::updateAuthorization() {
     if (!readInput(4)) sistemaAutorizado = true;
     if (readInput(5)) sistemaAutorizado = false;
-    // sistemaAutorizado = false; // DELETE THIS SHIT LATER
+    sistemaAutorizado = false; // DELETE THIS SHIT LATER
 }
 
 [[noreturn]] void CanningMachine::run() {
     for (;;) {
         updateAuthorization();
+
+        for (int i = 0; i < NUM_INPUTS; i++) {
+            inputState[i] = readInput(i);
+            vTaskDelay(pdMS_TO_TICKS(1));
+        }
+        continue;
 
         switch (stage) {
             case Stage::Reposo:

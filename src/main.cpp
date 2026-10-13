@@ -59,10 +59,11 @@ void setup() {
     // Connect to configured Wi-Fi network; restart system if configuration/connection fails.
     if (!WifiManager::setup()) {
         Serial.println("Failed to setup WiFi");
+        delay(1000);
         ESP.restart();
     }
     if (WifiManager::isFailedToConnect()) {
-        Serial.println("Failed to connect to WiFi");
+        SerialManager::enqueueLine("Failed to connect to WiFi");
         EvenTheRGBLedHasManagers::setColor(RGBColor(255, 0, 0), 500);
     }
     delay(750);
