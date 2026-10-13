@@ -5,7 +5,7 @@
 #include "VoiceKeywordModule.h"
 #include <secrets.h>
 #include <utility>
-
+#include <build_flags.h>
 #include "EvenTheRGBLedHasManagers.h"
 #include "SerialManager.h"
 
@@ -49,6 +49,10 @@ static void initI2S() {
 // Init — call from setup() before WifiManager::setup()
 // ─────────────────────────────────────────────────────────────
 void VoiceKeywordModule::init() {
+#if defined(DISABLE_AUDIO)
+    return;
+#endif
+
     audioQueue = xQueueCreate(AUDIO_QUEUE_LENGTH, AUDIO_QUEUE_ITEM_SIZE);
     if (!audioQueue) {
         SerialManager::enqueueLine("[Voice] Failed to create audio queue");
@@ -62,6 +66,12 @@ void VoiceKeywordModule::init() {
 // Start tasks — call from setup() after WifiManager::setup()
 // ─────────────────────────────────────────────────────────────
 void VoiceKeywordModule::begin() {
+
+#if defined(DISABLE_AUDIO)
+    SerialManager::enqueueLine("[Voice] Audio disabled");
+    return;
+#endif
+
     if (captureTaskHandle != nullptr || uploadTaskHandle != nullptr) {
         SerialManager::enqueueLine("[Voice] Tasks already running");
         return;
@@ -79,16 +89,15 @@ void VoiceKeywordModule::begin() {
         16384, nullptr, 4, &uploadTaskHandle, 0 // Core 0 — network upload
     );
     listening = true;
+    EvenTheRGBLedHasManagers::setColor(RGBColor(0, 12, 128));
     SerialManager::enqueueLine("[Voice] Voice keyword module started");
 }
 
 void VoiceKeywordModule::processCommands(const char *command) {
     if (const auto msg = String(command); msg == "voiceOn") {
         begin();
-        EvenTheRGBLedHasManagers::setColor(RGBColor(0, 12, 128));
     } else if (msg == "voiceOff") {
         stop();
-        EvenTheRGBLedHasManagers::setColor(RGBColor(0, 0, 0));
     }
 }
 
@@ -96,6 +105,12 @@ void VoiceKeywordModule::processCommands(const char *command) {
 // Stop tasks — safely terminate capture/upload and release queue buffers
 // ─────────────────────────────────────────────────────────────
 void VoiceKeywordModule::stop() {
+
+#if defined(DISABLE_AUDIO)
+    SerialManager::enqueueLine("[Voice] Audio disabled - can't stop");
+    return;
+#endif
+
     if (captureTaskHandle != nullptr) {
         vTaskDelete(captureTaskHandle);
         captureTaskHandle = nullptr;
@@ -117,6 +132,7 @@ void VoiceKeywordModule::stop() {
 
     i2s_stop(I2S_PORT);
     listening = false;
+    EvenTheRGBLedHasManagers::setColor(RGBColor(0, 0, 0));
     SerialManager::enqueueLine("[Voice] Module stopped safely");
 }
 
@@ -381,7 +397,12 @@ void VoiceKeywordModule::registerKeyword(
     keywordSets.push_back({.keywords = std::move(keywords), .callback = std::move(callback)});
 }
 
+void VoiceKeywordModule::setOnTranscriptionReceived(std::function<void(String)> callback) {
+    onTranscriptionReceived = std::move(callback);
+}
+
 void VoiceKeywordModule::processTranscript(const String &transcript) {
+    if (onTranscriptionReceived) onTranscriptionReceived(transcript);
     String lower = transcript;
     lower.toLowerCase();
 

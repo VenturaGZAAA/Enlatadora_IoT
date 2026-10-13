@@ -65,6 +65,8 @@ class VoiceKeywordModule {
 
     static std::vector<KeywordEntry> keywordSets;
 
+    static inline std::function<void(String)> onTranscriptionReceived = nullptr;
+
 public:
     static void init();
 
@@ -73,6 +75,7 @@ public:
     static void processCommands(const char *command);
 
     static void registerKeyword(std::vector<String> keywords, std::function<void(String)> callback);
+    static void setOnTranscriptionReceived(std::function<void(String)> callback);
 
     static bool isListening() { return listening; };
 

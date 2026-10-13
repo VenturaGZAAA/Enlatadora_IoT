@@ -63,8 +63,8 @@ void MqttManager::processPublishQueue() {
     if (!publishMutex) return;
     if (xSemaphoreTake(publishMutex, pdMS_TO_TICKS(20)) == pdTRUE) {
         while (!publishQueue.empty()) {
-            const auto &msg = publishQueue.front();
-            mqtt.publish(msg.topic, msg.payload, msg.qos, msg.retain);
+            const auto &[topic, payload, qos, retain] = publishQueue.front();
+            mqtt.publish(topic, payload, qos, retain);
             publishQueue.pop();
         }
         xSemaphoreGive(publishMutex);

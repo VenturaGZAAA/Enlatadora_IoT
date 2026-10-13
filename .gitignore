@@ -6,3 +6,4 @@
 
 .idea
 src/secrets.h
+src/build_flags.h

@@ -129,7 +129,6 @@ public:
 
     static void outputsWriteJsonCallback(const JsonDocument &doc);
 
-
     static void processCommands(const char *command);
 
     static void allOff();

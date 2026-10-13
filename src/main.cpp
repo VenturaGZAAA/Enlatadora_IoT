@@ -114,9 +114,6 @@ void setup() {
         CanningMachine::inputsWriteJsonCallback(doc);
     });
 #endif
-
-
-
     // MQTT Subscription: High-level operational commands (Start, Stop, Pause, etc.).
     MqttManager::registerCallback("machine/command", CanningMachine::processCommands);
 
@@ -138,10 +135,14 @@ void setup() {
     // Start local HTTP dashboard server for local monitoring and control.
     DashboardServer::setup();
     // Register keyword → event handlers
-    VoiceKeywordModule::registerKeyword(CanningMachine::allCom,[](const String& cmd) {
+    VoiceKeywordModule::registerKeyword(CanningMachine::allCom, [](const String &cmd) {
         CanningMachine::processCommands(cmd.c_str());
+        MqttManager::publish("voice/keyword/match", cmd);
     });
 
+    VoiceKeywordModule::setOnTranscriptionReceived([](const String &transcription) {
+        MqttManager::publish("voice/keyword/transcription", transcription);
+    });
 
     // --- 7. Canning Machine Logic & Startup Completion ---
     // Initialize hardware pins, sensors, and actuators for the canning machine.

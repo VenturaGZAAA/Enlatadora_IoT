@@ -56,7 +56,7 @@ void CanningMachine::configurePins() {
 #endif
 
     for (int i = 0; i < NUM_OUTPUTS; ++i) {
-#ifndef OUTPUT_TEST
+#ifndef DISABLE_REAL_OUTPUT
         pinMode(ACTUATOR_PINS[i], OUTPUT);
 #endif
         outputState[i] = false;
@@ -65,7 +65,7 @@ void CanningMachine::configurePins() {
 
 void CanningMachine::writeOutput(const int index, const bool value) {
     outputState[index] = value;
-#ifndef OUTPUT_TEST
+#ifndef DISABLE_REAL_OUTPUT
     digitalWrite(ACTUATOR_PINS[index], value ? HIGH : LOW);
 #endif
 }
@@ -245,6 +245,7 @@ void CanningMachine::processCommand(const Commands command) {
 void CanningMachine::updateAuthorization() {
     if (!readInput(4)) sistemaAutorizado = true;
     if (readInput(5)) sistemaAutorizado = false;
+    // sistemaAutorizado = false; // DELETE THIS SHIT LATER
 }
 
 [[noreturn]] void CanningMachine::run() {
