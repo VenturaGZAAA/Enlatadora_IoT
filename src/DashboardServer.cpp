@@ -42,10 +42,10 @@ void DashboardServer::setup() {
                   if (request->_tempObject == nullptr) {
                       request->send(200, "application/json", R"({"status":"success"})");
                   } else {
-                      const String errorMsg = *static_cast<String *>(request->_tempObject);
-                      // delete static_cast<String *>(request->_tempObject);
-
-                      const String responseJson = R"({"status":"error","message":")" + errorMsg + R"("})";
+                      auto *errorMsg = static_cast<String *>(request->_tempObject);
+                      const String responseJson = R"({"status":"error","message":")" + *errorMsg + R"("})";
+                      delete errorMsg;
+                      request->_tempObject = nullptr;
                       request->send(400, "application/json", responseJson);
                   }
               }, nullptr, [](AsyncWebServerRequest *request, uint8_t *data, size_t length, size_t, size_t) {

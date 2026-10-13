@@ -24,7 +24,12 @@
 void setup() {
     // --- 1. Core Hardware & Storage Initialization ---
     // Initialize Non-Volatile Storage (NVS) for persistent configuration storage (e.g., Wi-Fi credentials).
-    nvs_flash_init();
+    esp_err_t err = nvs_flash_init();
+    if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        err = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(err);
 
     // Initialize serial communication and serial command dispatcher.
     Serial.begin(115200);
