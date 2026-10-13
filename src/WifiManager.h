@@ -8,9 +8,9 @@
 #include <Arduino.h>
 #include <Preferences.h>
 #include <ArduinoJson.h>
-static Preferences prefs;
 
 class WifiManager {
+    static inline Preferences prefs;
     static bool start_ap;
     static bool sta_connected;
     static const char *hostname;

@@ -104,7 +104,7 @@ void MqttManager::begin() {
 
 [[noreturn]] void MqttManager::mqttManagerLoop() {
     unsigned long lastWatchdogFeed = millis();
-
+    esp_task_wdt_add(nullptr);
     while (true) {
         mqtt.loop();
 
