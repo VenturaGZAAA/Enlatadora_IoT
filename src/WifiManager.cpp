@@ -10,8 +10,6 @@
 #include <ArduinoJson.h>
 #include <SerialManager.h>
 #include "WifiManager.h"
-#include "EvenTheRGBLedHasManagers.h"
-
 
 bool WifiManager::start_ap = false;
 bool WifiManager::sta_connected = false;
@@ -92,9 +90,6 @@ bool WifiManager::setup() {
     prefs.end();
     if (sta_connected) {
         return true;
-    }
-    if (!start_ap) {
-        EvenTheRGBLedHasManagers::setColor(RGBColor(255, 0, 0), 500);
     }
     return startAccessPoint();
 }

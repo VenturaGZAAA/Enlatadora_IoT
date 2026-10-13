@@ -31,7 +31,9 @@ public:
 
     static bool setup();
 
-    static bool isStaConnected() { return sta_connected; }
+    static bool isConnected() { return sta_connected; }
+    static bool isFailedToConnect() { return !start_ap && !sta_connected; }
+
 
     static IPAddress getServerIP();
 

@@ -61,8 +61,11 @@ void setup() {
         Serial.println("Failed to setup WiFi");
         ESP.restart();
     }
-
-    delay(500);
+    if (WifiManager::isFailedToConnect()) {
+        Serial.println("Failed to connect to WiFi");
+        EvenTheRGBLedHasManagers::setColor(RGBColor(255, 0, 0), 500);
+    }
+    delay(750);
 
     // --- 4. MQTT Broker & Communication Setup ---
     MqttManager::setup();
