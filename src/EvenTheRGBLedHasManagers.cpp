@@ -4,7 +4,6 @@
 
 #include "EvenTheRGBLedHasManagers.h"
 
-#include "SerialManager.h"
 
 void EvenTheRGBLedHasManagers::init() {
     if (!ledMutex) {

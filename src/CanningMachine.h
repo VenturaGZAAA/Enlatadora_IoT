@@ -96,6 +96,10 @@ class CanningMachine {
     static bool readInput(int index);
 
     static void processCommand(Commands command);
+    
+    static inline std::function<void()> onStopCommand = nullptr;
+    static inline std::function<void()> onStartCommand = nullptr;
+    static inline std::function<void()> onPauseCommand = nullptr;
 
 
 public:
@@ -130,6 +134,10 @@ public:
     static void outputsWriteJsonCallback(const JsonDocument &doc);
 
     static void processCommands(const char *command);
+
+    static void setOnStopCallback(std::function<void()> callback);
+    static void setOnStartCallback(std::function<void()> callback);
+    static void setOnPauseCallback(std::function<void()> callback);
 
     static void allOff();
 

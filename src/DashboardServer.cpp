@@ -2,8 +2,9 @@
 #include "SerialManager.h"
 #include <SPI.h>
 #include <build_flags.h>
+
+#include <utility>
 #include "WifiManager.h"
-#include "EvenTheRGBLedHasManagers.h"
 // --- SD Card Pins for ESP32-S3-DevKitM-1 ---
 
 #define SD_CS   11
@@ -73,13 +74,18 @@ bool DashboardServer::isMounted() {
     return mounted;
 }
 
+void DashboardServer::setOnRootRequested(std::function<void()> callback) {
+    onRootRequested = std::move(callback);
+}
+
 void DashboardServer::handleFileRequest(AsyncWebServerRequest *request) {
     // 1. Determine the base file path (without compression suffix)
     String path = request->url();
-    SerialManager::enqueueLine("Handling:\t" + path);
     if (path == "/" || path == "") {
         path = "/web/index.html";
-        EvenTheRGBLedHasManagers::setColor(RGBColor(200, 200, 0), 250);
+        if (onRootRequested) {
+            onRootRequested();
+        }
     } else {
         path = "/web" + path;
     }
@@ -135,7 +141,9 @@ void DashboardServer::handleFileRequest(AsyncWebServerRequest *request) {
     if (contentEncoding != nullptr) {
         response->addHeader("Content-Encoding", contentEncoding);
         // Optionally add cache control for compressed assets
+#ifndef DISABLE_DASHBOARD_CACHE
         response->addHeader("Cache-Control", "public, max-age=31536000");
+#endif
     }
     // 7. Send the response
     request->send(response);

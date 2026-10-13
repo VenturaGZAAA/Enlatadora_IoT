@@ -6,7 +6,6 @@
 #include <secrets.h>
 #include <utility>
 #include <build_flags.h>
-#include "EvenTheRGBLedHasManagers.h"
 #include "SerialManager.h"
 
 QueueHandle_t VoiceKeywordModule::audioQueue = nullptr;
@@ -62,6 +61,14 @@ void VoiceKeywordModule::init() {
     SerialManager::enqueueLine("[Voice] I2S microphone initialised");
 }
 
+void VoiceKeywordModule::setOnStarted(std::function<void()> callback) {
+    onStarted = std::move(callback);
+}
+
+void VoiceKeywordModule::setOnStopped(std::function<void()> callback) {
+    onStopped = std::move(callback);
+}
+
 // ─────────────────────────────────────────────────────────────
 // Start tasks — call from setup() after WifiManager::setup()
 // ─────────────────────────────────────────────────────────────
@@ -89,8 +96,11 @@ void VoiceKeywordModule::begin() {
         16384, nullptr, 4, &uploadTaskHandle, 0 // Core 0 — network upload
     );
     listening = true;
-    EvenTheRGBLedHasManagers::setColor(RGBColor(0, 12, 128));
+
     SerialManager::enqueueLine("[Voice] Voice keyword module started");
+    if (onStarted) {
+        onStarted();
+    }
 }
 
 void VoiceKeywordModule::processCommands(const char *command) {
@@ -132,8 +142,10 @@ void VoiceKeywordModule::stop() {
 
     i2s_stop(I2S_PORT);
     listening = false;
-    EvenTheRGBLedHasManagers::setColor(RGBColor(0, 0, 0));
     SerialManager::enqueueLine("[Voice] Module stopped safely");
+    if (onStopped) {
+        onStopped();
+    }
 }
 
 // ─────────────────────────────────────────────────────────────

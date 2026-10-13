@@ -6,11 +6,9 @@
 #include <ArduinoJson.h>
 
 #include "SerialManager.h"
-#include <secrets.h>
 #include <build_flags.h>
 
-#include "EvenTheRGBLedHasManagers.h"
-
+#include <utility>
 
 void CanningMachine::setup() {
     configurePins();
@@ -206,20 +204,19 @@ void CanningMachine::processCommands(const char *command) {
         allowOutputOverride = true;
     } else if (cmd == "DisableOutputOverride") {
         allowOutputOverride = false;
-    }
-    else if (std::find(allCom.begin(), allCom.end(), cmd) != allCom.end()) {
+    } else if (std::find(allCom.begin(), allCom.end(), cmd) != allCom.end()) {
         processCommand(commandFromString(cmd));
     }
 }
 
 CanningMachine::Commands CanningMachine::commandFromString(const String &str) {
-    if (std::find(stopCom.begin(),stopCom.end(), str) != stopCom.end()) {
+    if (std::find(stopCom.begin(), stopCom.end(), str) != stopCom.end()) {
         return Commands::Stop;
     }
-    if (std::find(pauseCom.begin(),pauseCom.end(), str) != pauseCom.end()) {
+    if (std::find(pauseCom.begin(), pauseCom.end(), str) != pauseCom.end()) {
         return Commands::Pause;
     }
-    if (std::find(startCom.begin(),startCom.end(), str) != startCom.end()) {
+    if (std::find(startCom.begin(), startCom.end(), str) != startCom.end()) {
         return Commands::Start;
     }
     return Commands::Unknown;
@@ -228,18 +225,33 @@ CanningMachine::Commands CanningMachine::commandFromString(const String &str) {
 void CanningMachine::processCommand(const Commands command) {
     switch (command) {
         case Commands::Stop:
-            EvenTheRGBLedHasManagers::setColor(RGBColor(255, 0, 0),1000);
             allOff();
+            if (onStopCommand)
+                onStopCommand();
             break;
         case Commands::Pause:
-            EvenTheRGBLedHasManagers::setColor(RGBColor(255, 0, 255),1000);
+            if (onPauseCommand)
+                onPauseCommand();
             break;
         case Commands::Start:
-            EvenTheRGBLedHasManagers::setColor(RGBColor(0, 255, 0),1000);
+            if (onStartCommand)
+                onStartCommand();
             break;
         default:
             break;
     }
+}
+
+void CanningMachine::setOnStopCallback(std::function<void()> callback) {
+    onStopCommand = std::move(callback);
+}
+
+void CanningMachine::setOnStartCallback(std::function<void()> callback) {
+    onStartCommand = std::move(callback);
+}
+
+void CanningMachine::setOnPauseCallback(std::function<void()> callback) {
+    onPauseCommand = std::move(callback);
 }
 
 void CanningMachine::updateAuthorization() {

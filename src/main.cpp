@@ -134,10 +134,22 @@ void setup() {
     // --- 6. Web Dashboard Server ---
     // Start local HTTP dashboard server for local monitoring and control.
     DashboardServer::setup();
+
+    DashboardServer::setOnRootRequested([] {
+        EvenTheRGBLedHasManagers::setColor(RGBColor(200, 200, 0), 250);
+    });
+
     // Register keyword → event handlers
     VoiceKeywordModule::registerKeyword(CanningMachine::allCom, [](const String &cmd) {
         CanningMachine::processCommands(cmd.c_str());
         MqttManager::publish("voice/keyword/match", cmd);
+    });
+
+    VoiceKeywordModule::setOnStarted([] {
+        EvenTheRGBLedHasManagers::setColor(RGBColor(0, 0, 128));
+    });
+    VoiceKeywordModule::setOnStopped([] {
+        EvenTheRGBLedHasManagers::setColor(RGBColor());
     });
 
     VoiceKeywordModule::setOnTranscriptionReceived([](const String &transcription) {
@@ -147,6 +159,17 @@ void setup() {
     // --- 7. Canning Machine Logic & Startup Completion ---
     // Initialize hardware pins, sensors, and actuators for the canning machine.
     CanningMachine::setup();
+
+    CanningMachine::setOnStopCallback([] {
+        EvenTheRGBLedHasManagers::setColor(RGBColor(255, 0, 0),1000);
+    });
+    CanningMachine::setOnStartCallback([] {
+        EvenTheRGBLedHasManagers::setColor(RGBColor(0, 255, 0),1000);
+    });
+    CanningMachine::setOnPauseCallback([] {
+        EvenTheRGBLedHasManagers::setColor(RGBColor(255, 0, 255),1000);
+    });
+
     delay(100);
 
     // Indicate successful initialization and operational readiness with Green LED.

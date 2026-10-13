@@ -18,8 +18,12 @@ class DashboardServer {
 
     static const char *getEncoding(const AsyncWebServerRequest *request);
 
+    static inline std::function<void()> onRootRequested = nullptr;
+
 public:
     static void setup();
+
+    static void setOnRootRequested(std::function<void()> callback);
 
     static bool isMounted();
 };

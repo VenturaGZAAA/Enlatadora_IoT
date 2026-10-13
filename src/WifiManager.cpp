@@ -18,10 +18,8 @@ bool WifiManager::sta_connected = false;
 const char *WifiManager::hostname = "enlatadora-s3";
 IPAddress WifiManager::server_ip = IPAddress(192, 168, 4, 10);
 
-void WifiManager::setupMdns()
-{
-    if (!MDNS.begin(hostname))
-    {
+void WifiManager::setupMdns() {
+    if (!MDNS.begin(hostname)) {
         Serial.println("MDNS responder not available");
         return;
     }
@@ -96,7 +94,7 @@ bool WifiManager::setup() {
         return true;
     }
     if (!start_ap) {
-        EvenTheRGBLedHasManagers::setColor(RGBColor(255, 0, 0),500);
+        EvenTheRGBLedHasManagers::setColor(RGBColor(255, 0, 0), 500);
     }
     return startAccessPoint();
 }
@@ -109,13 +107,13 @@ String WifiManager::getSerializedState() {
     serializeJson(jsonDoc, state);
     return state;
 }
+
 IPAddress WifiManager::getServerIP() {
     return server_ip;
 }
 
 
 void WifiManager::wifiConfigJsonCallback(const JsonDocument &doc) {
-
     prefs.begin("wifi", false);
     if (doc["start_ap"].is<bool>()) {
         start_ap = doc["start_ap"];
@@ -148,5 +146,3 @@ void WifiManager::wifiConfigJsonCallback(const JsonDocument &doc) {
     SerialManager::enqueueLine("WiFi credentials overwritten");
     prefs.end();
 }
-
-
