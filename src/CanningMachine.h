@@ -93,7 +93,10 @@ class CanningMachine {
     static void writeOutput(int index, bool value);
 
 
-    static bool readInput(int index);
+    static bool readInput(int index, bool update = false);
+    static inline uint8_t autoUpdatePeriod = 10;
+    static inline TaskHandle_t autoUpdateTaskHandle = nullptr;
+    [[noreturn]] static void autoUpdateLoop();
 
     static void processCommand(Commands command);
     
@@ -117,7 +120,7 @@ public:
     }();
 
 
-    static void setup();
+    static void setup(bool startAutoUpdate = false);
 
     static void begin();
 

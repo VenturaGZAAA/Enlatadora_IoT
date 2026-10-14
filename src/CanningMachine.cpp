@@ -10,10 +10,21 @@
 
 #include <utility>
 
-void CanningMachine::setup() {
+void CanningMachine::setup(const bool startAutoUpdate) {
     configurePins();
     allOff();
     setUp = true;
+    if (startAutoUpdate) {
+        xTaskCreatePinnedToCore(
+            reinterpret_cast<TaskFunction_t>(autoUpdateLoop),
+            "CanningMachineAutoUpdate",
+            1024,
+            nullptr,
+            1,
+            &autoUpdateTaskHandle,
+            0
+        );
+    }
 }
 
 void CanningMachine::begin() {
@@ -68,11 +79,24 @@ void CanningMachine::writeOutput(const int index, const bool value) {
 #endif
 }
 
-bool CanningMachine::readInput(const int index) {
+bool CanningMachine::readInput(const int index, const bool update) {
 #ifndef INPUT_LOGIC_TEST
-    inputState[index] = digitalRead(IN_PINS[index]) == HIGH;
+    if (update) {
+        inputState[index] = digitalRead(IN_PINS[index]) == HIGH;
+    }
 #endif
     return inputState[index];
+}
+
+[[noreturn]] void CanningMachine::autoUpdateLoop() {
+
+    while (true) {
+        for (int i = 0; i < NUM_INPUTS; i++) {
+            readInput(i, true);
+        }
+        updateAuthorization();
+        vTaskDelay(pdMS_TO_TICKS(autoUpdatePeriod));
+    }
 }
 
 
@@ -257,18 +281,13 @@ void CanningMachine::setOnPauseCallback(std::function<void()> callback) {
 void CanningMachine::updateAuthorization() {
     if (!readInput(4)) sistemaAutorizado = true;
     if (readInput(5)) sistemaAutorizado = false;
-    sistemaAutorizado = false; // DELETE THIS SHIT LATER
 }
 
+
 [[noreturn]] void CanningMachine::run() {
+
     for (;;) {
         updateAuthorization();
-
-        for (int i = 0; i < NUM_INPUTS; i++) {
-            inputState[i] = readInput(i);
-            vTaskDelay(pdMS_TO_TICKS(1));
-        }
-        continue;
 
         switch (stage) {
             case Stage::Reposo:
@@ -503,5 +522,9 @@ void CanningMachine::stop() {
         machineRunning = false;
         sistemaAutorizado = false;
         stage = Stage::Reposo;
+    }
+    if (autoUpdateTaskHandle != nullptr) {
+        vTaskDelete(autoUpdateTaskHandle);
+        autoUpdateTaskHandle = nullptr;
     }
 }
