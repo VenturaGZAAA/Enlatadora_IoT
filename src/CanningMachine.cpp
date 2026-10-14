@@ -10,11 +10,17 @@
 
 #include <utility>
 
-void CanningMachine::setup(const bool startAutoUpdate) {
+void CanningMachine::setup(const bool autoUpdate) {
     configurePins();
     allOff();
     setUp = true;
-    if (startAutoUpdate) {
+    if (autoUpdate) {
+        startAutoUpdate();
+    }
+}
+
+void CanningMachine::startAutoUpdate() {
+    if (autoUpdateTaskHandle == nullptr) {
         xTaskCreatePinnedToCore(
             reinterpret_cast<TaskFunction_t>(autoUpdateLoop),
             "CanningMachineAutoUpdate",
@@ -523,6 +529,10 @@ void CanningMachine::stop() {
         sistemaAutorizado = false;
         stage = Stage::Reposo;
     }
+    stopAutoUpdate();
+}
+
+void CanningMachine::stopAutoUpdate() {
     if (autoUpdateTaskHandle != nullptr) {
         vTaskDelete(autoUpdateTaskHandle);
         autoUpdateTaskHandle = nullptr;

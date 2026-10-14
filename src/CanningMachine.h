@@ -120,9 +120,11 @@ public:
     }();
 
 
-    static void setup(bool startAutoUpdate = false);
+    static void setup(bool autoUpdate = false);
 
     static void begin();
+    static void startAutoUpdate();
+    static void stopAutoUpdate();
 
     static String getJsonOutputs();
 
