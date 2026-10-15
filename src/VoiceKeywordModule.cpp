@@ -16,7 +16,7 @@ std::vector<VoiceKeywordModule::KeywordEntry> VoiceKeywordModule::keywordSets;
 // ─────────────────────────────────────────────────────────────
 // I2S Initialization
 // ─────────────────────────────────────────────────────────────
-static void initI2S() {
+void VoiceKeywordModule::initI2S() {
     constexpr i2s_config_t i2sConfig = {
         .mode = static_cast<i2s_mode_t>(I2S_MODE_MASTER | I2S_MODE_RX),
         .sample_rate = SAMPLE_RATE,
@@ -37,10 +37,19 @@ static void initI2S() {
         .data_out_num = I2S_PIN_NO_CHANGE,
         .data_in_num = I2S_MIC_SD_PIN
     };
+    failedToInitialize = true;
+    if (i2s_driver_install(I2S_PORT, &i2sConfig, 0, nullptr) != ESP_OK) {
 
-    ESP_ERROR_CHECK(i2s_driver_install(I2S_PORT, &i2sConfig, 0, nullptr));
-    ESP_ERROR_CHECK(i2s_set_pin(I2S_PORT, &pinConfig));
-    ESP_ERROR_CHECK(i2s_start(I2S_PORT));
+        return;
+    }
+     if (i2s_set_pin(I2S_PORT, &pinConfig) != ESP_OK) {
+        return;
+    }
+    if (i2s_start(I2S_PORT) != ESP_OK) {
+        return;
+    }
+
+    failedToInitialize = false;
     vTaskDelay(pdMS_TO_TICKS(100)); // Allow mic to stabilise
 }
 
@@ -58,6 +67,7 @@ void VoiceKeywordModule::init() {
         return;
     }
     initI2S();
+    initialized = true;
     SerialManager::enqueueLine("[Voice] I2S microphone initialised");
 }
 
@@ -78,6 +88,15 @@ void VoiceKeywordModule::begin() {
     SerialManager::enqueueLine("[Voice] Audio disabled");
     return;
 #endif
+
+    if (!initialized) {
+        SerialManager::enqueueLine("[Voice] Module not initialized");
+        return;
+    }
+    if (failedToInitialize) {
+        SerialManager::enqueueLine("[Voice] Module failed to initialize");
+        return;
+    }
 
     if (captureTaskHandle != nullptr || uploadTaskHandle != nullptr) {
         SerialManager::enqueueLine("[Voice] Tasks already running");

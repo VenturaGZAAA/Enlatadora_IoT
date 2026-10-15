@@ -56,6 +56,8 @@ class VoiceKeywordModule {
     static QueueHandle_t audioQueue;
     static TaskHandle_t captureTaskHandle;
     static TaskHandle_t uploadTaskHandle;
+    static inline bool initialized = false;
+    static inline bool failedToInitialize = true;
     static inline bool listening = false;
 
     struct KeywordEntry {
@@ -64,11 +66,11 @@ class VoiceKeywordModule {
     };
 
     static std::vector<KeywordEntry> keywordSets;
-
     static inline std::function<void()> onStarted;
     static inline std::function<void()> onStopped;
 
     static inline std::function<void(String)> onTranscriptionReceived = nullptr;
+    static void initI2S();
 
 public:
     static void init();
