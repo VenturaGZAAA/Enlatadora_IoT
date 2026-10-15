@@ -7,6 +7,7 @@
 #include <utility>
 #include <build_flags.h>
 #include "SerialManager.h"
+#include <WifiManager.h>
 
 QueueHandle_t VoiceKeywordModule::audioQueue = nullptr;
 TaskHandle_t VoiceKeywordModule::captureTaskHandle = nullptr;
@@ -16,7 +17,7 @@ std::vector<VoiceKeywordModule::KeywordEntry> VoiceKeywordModule::keywordSets;
 // ─────────────────────────────────────────────────────────────
 // I2S Initialization
 // ─────────────────────────────────────────────────────────────
-void VoiceKeywordModule::initI2S() {
+bool VoiceKeywordModule::initI2S() {
     constexpr i2s_config_t i2sConfig = {
         .mode = static_cast<i2s_mode_t>(I2S_MODE_MASTER | I2S_MODE_RX),
         .sample_rate = SAMPLE_RATE,
@@ -37,20 +38,18 @@ void VoiceKeywordModule::initI2S() {
         .data_out_num = I2S_PIN_NO_CHANGE,
         .data_in_num = I2S_MIC_SD_PIN
     };
-    failedToInitialize = true;
+    failedToInitialize = false;
     if (i2s_driver_install(I2S_PORT, &i2sConfig, 0, nullptr) != ESP_OK) {
-
-        return;
+        failedToInitialize = true;
     }
      if (i2s_set_pin(I2S_PORT, &pinConfig) != ESP_OK) {
-        return;
+        failedToInitialize = true;
     }
     if (i2s_start(I2S_PORT) != ESP_OK) {
-        return;
+        failedToInitialize = true;
     }
-
-    failedToInitialize = false;
     vTaskDelay(pdMS_TO_TICKS(100)); // Allow mic to stabilise
+    return !failedToInitialize;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -61,12 +60,20 @@ void VoiceKeywordModule::init() {
     return;
 #endif
 
+    if (!WifiManager::isConnected()) {
+        SerialManager::enqueueLine("[Voice] Not connected to WiFi network");
+        return;
+    }
+
     audioQueue = xQueueCreate(AUDIO_QUEUE_LENGTH, AUDIO_QUEUE_ITEM_SIZE);
     if (!audioQueue) {
         SerialManager::enqueueLine("[Voice] Failed to create audio queue");
         return;
     }
-    initI2S();
+    if (!initI2S()) {
+        SerialManager::enqueueLine("[Voice] Module failed to initialize");
+        return;
+    }
     initialized = true;
     SerialManager::enqueueLine("[Voice] I2S microphone initialised");
 }
@@ -97,7 +104,6 @@ void VoiceKeywordModule::begin() {
         SerialManager::enqueueLine("[Voice] Module failed to initialize");
         return;
     }
-
     if (captureTaskHandle != nullptr || uploadTaskHandle != nullptr) {
         SerialManager::enqueueLine("[Voice] Tasks already running");
         return;

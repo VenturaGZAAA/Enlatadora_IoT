@@ -71,7 +71,7 @@ class VoiceKeywordModule {
     static inline std::function<void()> onStopped;
 
     static inline std::function<void(String)> onTranscriptionReceived = nullptr;
-    static void initI2S();
+    static bool initI2S();
 
 public:
     static void init();
