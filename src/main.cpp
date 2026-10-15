@@ -154,11 +154,14 @@ void setup() {
         MqttManager::publish("voice/keyword/match", cmd);
     },true);
 
-    VoiceKeywordModule::setOnStarted([] {
-        EvenTheRGBLedHasManagers::setColor(RGBColor(0, 0, 128));
-    });
-    VoiceKeywordModule::setOnStopped([] {
-        EvenTheRGBLedHasManagers::setColor(RGBColor());
+
+    EvenTheRGBLedHasManagers::setColorGenerator([] {
+
+        if (VoiceKeywordModule::isListening()) {
+            return RGBColor(0, 0, 128);
+        }
+
+        return RGBColor();
     });
 
     VoiceKeywordModule::setOnTranscriptionReceived([](const String &transcription) {

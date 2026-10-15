@@ -9,6 +9,8 @@
 #include <freertos/task.h>
 #include <freertos/semphr.h>
 
+#include <utility>
+
 class RGBColor {
     uint8_t r;
     uint8_t g;
@@ -50,17 +52,21 @@ class EvenTheRGBLedHasManagers {
 
     [[noreturn]] static void loop();
 
-    static inline auto persistentColor = RGBColor();
     static inline auto holdColor = RGBColor();
     static inline unsigned long lastHoldTimestamp = millis();
     static inline unsigned long holdDuration = 0;
 
     static void writeColor(const RGBColor &color);
+    static inline std::function<RGBColor()> colorGenerator = nullptr;
 
 public:
     static void init();
 
-    static void setColor(RGBColor color, unsigned long t = 0);
+    static void setColor(RGBColor color, unsigned long t);
+
+    static void setColorGenerator(std::function<RGBColor()> generator) {
+        colorGenerator = std::move(generator);
+    }
 
     static void stop();
 };
