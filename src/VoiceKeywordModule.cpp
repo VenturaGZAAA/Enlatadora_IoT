@@ -424,8 +424,8 @@ void VoiceKeywordModule::createWavHeader(
 // Keyword matching — replace with your own event triggers
 // ─────────────────────────────────────────────────────────────
 void VoiceKeywordModule::registerKeyword(
-    std::vector<String> keywords, std::function<void(String)> callback) {
-    keywordSets.push_back({.keywords = std::move(keywords), .callback = std::move(callback)});
+    std::vector<String> keywords, std::function<void(String)> callback, const bool stopOnFirstMatch) {
+    keywordSets.push_back({.keywords = std::move(keywords), .callback = std::move(callback), .stopOnFirstMatch = stopOnFirstMatch});
 }
 
 void VoiceKeywordModule::setOnTranscriptionReceived(std::function<void(String)> callback) {
@@ -437,7 +437,7 @@ void VoiceKeywordModule::processTranscript(const String &transcript) {
     String lower = transcript;
     lower.toLowerCase();
 
-    for (auto &[keywords, callback]: keywordSets) {
+    for (auto &[keywords, callback,stopOnFirstMatch]: keywordSets) {
         for (auto &keyword : keywords) {
 
             String kwLower = keyword;
@@ -446,7 +446,7 @@ void VoiceKeywordModule::processTranscript(const String &transcript) {
                 SerialManager::enqueueLine("[Voice] Keyword matched: " +
                                            keyword);
                 if (callback) callback(keyword);
-                break;
+                if (stopOnFirstMatch) break;
             }
         }
 

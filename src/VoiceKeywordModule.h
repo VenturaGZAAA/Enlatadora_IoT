@@ -63,6 +63,7 @@ class VoiceKeywordModule {
     struct KeywordEntry {
         std::vector<String> keywords;
         std::function<void(String)> callback;
+        bool stopOnFirstMatch;
     };
 
     static std::vector<KeywordEntry> keywordSets;
@@ -79,7 +80,7 @@ public:
 
     static void processCommands(const char *command);
 
-    static void registerKeyword(std::vector<String> keywords, std::function<void(String)> callback);
+    static void registerKeyword(std::vector<String> keywords, std::function<void(String)> callback, bool stopOnFirstMatch = false);
     static void setOnStarted(std::function<void()> callback);
     static void setOnStopped(std::function<void()> callback);
     static void setOnTranscriptionReceived(std::function<void(String)> callback);

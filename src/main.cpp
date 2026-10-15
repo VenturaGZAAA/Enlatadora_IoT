@@ -152,7 +152,7 @@ void setup() {
     VoiceKeywordModule::registerKeyword(CanningMachine::allCom, [](const String &cmd) {
         CanningMachine::processCommands(cmd.c_str());
         MqttManager::publish("voice/keyword/match", cmd);
-    });
+    },true);
 
     VoiceKeywordModule::setOnStarted([] {
         EvenTheRGBLedHasManagers::setColor(RGBColor(0, 0, 128));
