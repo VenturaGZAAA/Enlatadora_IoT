@@ -42,9 +42,6 @@ bool VoiceKeywordModule::initI2S() {
 
     failedToInitialize = false;
 
-    // Pull down data line so a disconnected pin reads constant zeros instead of floating noise
-    gpio_set_pull_mode(static_cast<gpio_num_t>(I2S_MIC_SD_PIN), GPIO_PULLDOWN_ONLY);
-
     if (i2s_driver_install(I2S_PORT, &i2sConfig, 0, nullptr) != ESP_OK) {
         failedToInitialize = true;
         return false;
@@ -53,6 +50,11 @@ bool VoiceKeywordModule::initI2S() {
         failedToInitialize = true;
         return false;
     }
+
+    // Pull down data line so a disconnected pin reads constant zeros instead of floating noise.
+    // Set after i2s_set_pin so driver pin configuration doesn't overwrite pull mode.
+    gpio_set_pull_mode(static_cast<gpio_num_t>(I2S_MIC_SD_PIN), GPIO_PULLDOWN_ONLY);
+
     if (i2s_start(I2S_PORT) != ESP_OK) {
         failedToInitialize = true;
         return false;
@@ -61,39 +63,54 @@ bool VoiceKeywordModule::initI2S() {
     // Allow the microphone power-up and PLL stabilization time (typically 50-100ms for INMP441)
     vTaskDelay(pdMS_TO_TICKS(150));
 
-    // Test read a small sample batch to check for hardware presence
-    constexpr size_t TEST_SAMPLES = 256;
-    int32_t testBuffer[TEST_SAMPLES];
+    // Drain stale DMA buffers accumulated during power-up
+    constexpr size_t PROBE_SAMPLES = 256;
+    int32_t probeBuffer[PROBE_SAMPLES];
     size_t bytesRead = 0;
 
-    const esp_err_t err = i2s_read(
-        I2S_PORT,
-        testBuffer,
-        TEST_SAMPLES * sizeof(int32_t),
-        &bytesRead,
-        pdMS_TO_TICKS(200)
-    );
-
-    if (err != ESP_OK || bytesRead == 0) {
-        failedToInitialize = true;
-        i2s_driver_uninstall(I2S_PORT);
-        return false;
+    for (int i = 0; i < 4; ++i) {
+        i2s_read(I2S_PORT, probeBuffer, sizeof(probeBuffer), &bytesRead, pdMS_TO_TICKS(50));
     }
 
-    // Check whether all samples are completely identical/flat (constant 0 or constant 0xFFFFFFFF)
-    const size_t samplesCount = bytesRead / sizeof(int32_t);
-    bool hasVariation = false;
-    const int32_t firstSample = testBuffer[0];
+    // Test read sample batches to verify hardware presence via acoustic/electrical noise floor
+    bool micDetected = false;
+    for (int attempt = 0; attempt < 8; ++attempt) {
+        bytesRead = 0;
+        const esp_err_t err = i2s_read(
+            I2S_PORT,
+            probeBuffer,
+            sizeof(probeBuffer),
+            &bytesRead,
+            pdMS_TO_TICKS(100)
+        );
 
-    for (size_t i = 1; i < samplesCount; ++i) {
-        if (testBuffer[i] != firstSample) {
-            hasVariation = true;
+        if (err != ESP_OK || bytesRead == 0) {
+            continue;
+        }
+
+        const size_t samplesCount = bytesRead / sizeof(int32_t);
+        int32_t minVal = probeBuffer[0];
+        int32_t maxVal = probeBuffer[0];
+        bool nonZeroFound = (probeBuffer[0] != 0);
+
+        for (size_t i = 1; i < samplesCount; ++i) {
+            if (probeBuffer[i] != 0) {
+                nonZeroFound = true;
+            }
+            if (probeBuffer[i] < minVal) minVal = probeBuffer[i];
+            if (probeBuffer[i] > maxVal) maxVal = probeBuffer[i];
+        }
+
+        // If samples fluctuate and non-zero values exist, microphone is active
+        if (nonZeroFound && (minVal != maxVal)) {
+            micDetected = true;
             break;
         }
+
+        vTaskDelay(pdMS_TO_TICKS(20));
     }
 
-    // If all samples are zero or constant, the microphone is disconnected or not clocking out data
-    if (!hasVariation || firstSample == 0) {
+    if (!micDetected) {
         failedToInitialize = true;
         i2s_driver_uninstall(I2S_PORT);
         return false;
