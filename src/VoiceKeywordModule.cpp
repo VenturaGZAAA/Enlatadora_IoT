@@ -8,6 +8,7 @@
 #include <build_flags.h>
 #include "SerialManager.h"
 #include <WifiManager.h>
+#include <driver/gpio.h>
 
 QueueHandle_t VoiceKeywordModule::audioQueue = nullptr;
 TaskHandle_t VoiceKeywordModule::captureTaskHandle = nullptr;
@@ -38,18 +39,67 @@ bool VoiceKeywordModule::initI2S() {
         .data_out_num = I2S_PIN_NO_CHANGE,
         .data_in_num = I2S_MIC_SD_PIN
     };
+
     failedToInitialize = false;
+
+    // Pull down data line so a disconnected pin reads constant zeros instead of floating noise
+    gpio_set_pull_mode(static_cast<gpio_num_t>(I2S_MIC_SD_PIN), GPIO_PULLDOWN_ONLY);
+
     if (i2s_driver_install(I2S_PORT, &i2sConfig, 0, nullptr) != ESP_OK) {
         failedToInitialize = true;
+        return false;
     }
-     if (i2s_set_pin(I2S_PORT, &pinConfig) != ESP_OK) {
+    if (i2s_set_pin(I2S_PORT, &pinConfig) != ESP_OK) {
         failedToInitialize = true;
+        return false;
     }
     if (i2s_start(I2S_PORT) != ESP_OK) {
         failedToInitialize = true;
+        return false;
     }
-    vTaskDelay(pdMS_TO_TICKS(100)); // Allow mic to stabilise
-    return !failedToInitialize;
+
+    // Allow the microphone power-up and PLL stabilization time (typically 50-100ms for INMP441)
+    vTaskDelay(pdMS_TO_TICKS(150));
+
+    // Test read a small sample batch to check for hardware presence
+    constexpr size_t TEST_SAMPLES = 256;
+    int32_t testBuffer[TEST_SAMPLES];
+    size_t bytesRead = 0;
+
+    const esp_err_t err = i2s_read(
+        I2S_PORT,
+        testBuffer,
+        TEST_SAMPLES * sizeof(int32_t),
+        &bytesRead,
+        pdMS_TO_TICKS(200)
+    );
+
+    if (err != ESP_OK || bytesRead == 0) {
+        failedToInitialize = true;
+        i2s_driver_uninstall(I2S_PORT);
+        return false;
+    }
+
+    // Check whether all samples are completely identical/flat (constant 0 or constant 0xFFFFFFFF)
+    const size_t samplesCount = bytesRead / sizeof(int32_t);
+    bool hasVariation = false;
+    const int32_t firstSample = testBuffer[0];
+
+    for (size_t i = 1; i < samplesCount; ++i) {
+        if (testBuffer[i] != firstSample) {
+            hasVariation = true;
+            break;
+        }
+    }
+
+    // If all samples are zero or constant, the microphone is disconnected or not clocking out data
+    if (!hasVariation || firstSample == 0) {
+        failedToInitialize = true;
+        i2s_driver_uninstall(I2S_PORT);
+        return false;
+    }
+
+    return true;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -130,7 +180,7 @@ void VoiceKeywordModule::begin() {
     listening = true;
 
     SerialManager::enqueueLine("[Voice] Voice keyword module started");
-    if (onStarted) {
+    if (onStarted != nullptr) {
         onStarted();
     }
 }
@@ -175,7 +225,7 @@ void VoiceKeywordModule::stop() {
     i2s_stop(I2S_PORT);
     listening = false;
     SerialManager::enqueueLine("[Voice] Module stopped safely");
-    if (onStopped) {
+    if (onStopped != nullptr) {
         onStopped();
     }
 }

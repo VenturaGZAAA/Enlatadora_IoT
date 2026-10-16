@@ -14,7 +14,6 @@
 #include <freertos/queue.h>
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
-#include <ArduinoJson.h>
 
 // --- INMP441 I2S Pins (ESP32-S3) ---
 #define I2S_MIC_SD_PIN  41
