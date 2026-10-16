@@ -57,7 +57,7 @@ class VoiceKeywordModule {
     static TaskHandle_t captureTaskHandle;
     static TaskHandle_t uploadTaskHandle;
     static inline bool initialized = false;
-    static inline bool failedToInitialize = true;
+    static inline bool failedToInitialize = false;
     static inline bool listening = false;
 
     struct KeywordEntry {

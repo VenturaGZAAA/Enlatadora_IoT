@@ -47,7 +47,7 @@ void setup() {
 
     // Initialize status RGB LED and set to White during early boot sequence.
     EvenTheRGBLedHasManagers::init();
-    VoiceKeywordModule::init(); // I2S + queue (no network needed)
+    VoiceKeywordModule::init();
 
     delay(100);
     EvenTheRGBLedHasManagers::setColor(RGBColor(255, 255, 255), 250);

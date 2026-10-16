@@ -60,18 +60,16 @@ void VoiceKeywordModule::init() {
     return;
 #endif
 
-    if (!WifiManager::isConnected()) {
-        SerialManager::enqueueLine("[Voice] Not connected to WiFi network");
+
+    if (!initI2S()) {
+        SerialManager::enqueueLine("[Voice] Module failed to initialize");
         return;
     }
+
 
     audioQueue = xQueueCreate(AUDIO_QUEUE_LENGTH, AUDIO_QUEUE_ITEM_SIZE);
     if (!audioQueue) {
         SerialManager::enqueueLine("[Voice] Failed to create audio queue");
-        return;
-    }
-    if (!initI2S()) {
-        SerialManager::enqueueLine("[Voice] Module failed to initialize");
         return;
     }
     initialized = true;
@@ -96,14 +94,23 @@ void VoiceKeywordModule::begin() {
     return;
 #endif
 
-    if (!initialized) {
-        SerialManager::enqueueLine("[Voice] Module not initialized");
-        return;
-    }
+
     if (failedToInitialize) {
         SerialManager::enqueueLine("[Voice] Module failed to initialize");
         return;
     }
+
+    if (!initialized) {
+        SerialManager::enqueueLine("[Voice] Module not initialized");
+        return;
+    }
+
+    if (!WifiManager::isConnected()) {
+        SerialManager::enqueueLine("[Voice] Not connected to WiFi network");
+        return;
+    }
+
+
     if (captureTaskHandle != nullptr || uploadTaskHandle != nullptr) {
         SerialManager::enqueueLine("[Voice] Tasks already running");
         return;
