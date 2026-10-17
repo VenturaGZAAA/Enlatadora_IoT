@@ -9,6 +9,8 @@
 #include <freertos/task.h>
 #include <freertos/semphr.h>
 
+#include <algorithm>
+#include <cmath>
 #include <utility>
 
 class RGBColor {
@@ -27,6 +29,35 @@ public:
         this->r = r;
         this->g = g;
         this->b = b;
+    }
+
+    [[nodiscard]] static RGBColor Red() { return RGBColor(255, 0, 0); }
+    [[nodiscard]] static RGBColor Green() { return RGBColor(0, 255, 0); }
+    [[nodiscard]] static RGBColor Blue() { return RGBColor(0, 0, 255); }
+    [[nodiscard]] static RGBColor Yellow() { return RGBColor(255, 255, 0); }
+    [[nodiscard]] static RGBColor Magenta() { return RGBColor(255, 0, 255); }
+    [[nodiscard]] static RGBColor Cyan() { return RGBColor(0, 255, 255); }
+    [[nodiscard]] static RGBColor White() { return RGBColor(255, 255, 255); }
+
+    [[nodiscard]] static RGBColor red() { return Red(); }
+    [[nodiscard]] static RGBColor green() { return Green(); }
+    [[nodiscard]] static RGBColor blue() { return Blue(); }
+    [[nodiscard]] static RGBColor yellow() { return Yellow(); }
+    [[nodiscard]] static RGBColor magenta() { return Magenta(); }
+    [[nodiscard]] static RGBColor cyan() { return Cyan(); }
+    [[nodiscard]] static RGBColor white() { return White(); }
+
+    [[nodiscard]] RGBColor withAlpha(const uint8_t alpha) const {
+        return withAlpha(static_cast<float>(alpha) / 255.0f);
+    }
+
+    [[nodiscard]] RGBColor withAlpha(const float alpha) const {
+        const float clampedAlpha = (alpha < 0.0f) ? 0.0f : (alpha > 1.0f ? 1.0f : alpha);
+        return RGBColor(
+            static_cast<uint8_t>(roundf(static_cast<float>(this->r) * clampedAlpha)),
+            static_cast<uint8_t>(roundf(static_cast<float>(this->g) * clampedAlpha)),
+            static_cast<uint8_t>(roundf(static_cast<float>(this->b) * clampedAlpha))
+        );
     }
 
     [[nodiscard]] uint8_t getR() const { return this->r; }
@@ -57,6 +88,7 @@ class EvenTheRGBLedHasManagers {
     static inline unsigned long holdDuration = 0;
 
     static void writeColor(const RGBColor &color);
+
     static inline std::function<RGBColor()> colorGenerator = nullptr;
 
 public:
