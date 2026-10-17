@@ -25,7 +25,7 @@ void WebSeverManager::setup() {
                   if (request->_tempObject == nullptr) {
                       request->send(200, "application/json", R"({"status":"success"})");
                   } else {
-                      auto *errorMsg = static_cast<String *>(request->_tempObject);
+                      const auto *errorMsg = static_cast<String *>(request->_tempObject);
                       const String responseJson = R"({"status":"error","message":")" + *errorMsg + R"("})";
                       delete errorMsg;
                       request->_tempObject = nullptr;
@@ -82,16 +82,14 @@ void WebSeverManager::handleFileRequest(AsyncWebServerRequest *request) {
 
     if (hasEncoding) {
         if (strcmp(encoding, "br") == 0) {
-            const String brPath = path + ".br";
-            if (SdCardManager::exists(brPath)) {
+            if (const String brPath = path + ".br"; SdCardManager::exists(brPath)) {
                 filePath = brPath;
                 contentEncoding = "br";
             }
         }
 
         if (contentEncoding == nullptr && strcmp(encoding, "gzip") == 0) {
-            const String gzPath = path + ".gz";
-            if (SdCardManager::exists(gzPath)) {
+            if (const String gzPath = path + ".gz"; SdCardManager::exists(gzPath)) {
                 filePath = gzPath;
                 contentEncoding = "gzip";
             }
@@ -109,6 +107,9 @@ void WebSeverManager::handleFileRequest(AsyncWebServerRequest *request) {
     AsyncWebServerResponse *response = request->beginChunkedResponse(
         getContentType(path), // MIME type based on original extension
         [file](uint8_t *buffer, const size_t maxLen, size_t) -> size_t {
+            if (const SdCardManager::LockGuard lock(pdMS_TO_TICKS(1000)); !lock) {
+                return 0;
+            }
             const size_t bytesRead = file->read(buffer, maxLen);
             if (bytesRead == 0) {
                 file->close();

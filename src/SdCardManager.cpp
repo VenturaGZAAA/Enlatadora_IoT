@@ -11,7 +11,43 @@
 #define SD_SCK  13
 #define SD_MISO 14
 
+void SdCardManager::ensureMutex() {
+    if (!sdMutex) {
+        sdMutex = xSemaphoreCreateRecursiveMutex();
+    }
+}
+
+bool SdCardManager::lock(const TickType_t timeout) {
+    ensureMutex();
+    if (!sdMutex) {
+        return false;
+    }
+    return xSemaphoreTakeRecursive(sdMutex, timeout) == pdTRUE;
+}
+
+void SdCardManager::unlock() {
+    if (sdMutex) {
+        xSemaphoreGiveRecursive(sdMutex);
+    }
+}
+
+SemaphoreHandle_t SdCardManager::getMutex() {
+    ensureMutex();
+    return sdMutex;
+}
+
+bool SdCardManager::isMounted() {
+    LockGuard lock(pdMS_TO_TICKS(100));
+    return mounted;
+}
+
+const String &SdCardManager::getRootPath() {
+    return rootPath;
+}
+
+
 void SdCardManager::init(const String &_rootPath) {
+    LockGuard lock(pdMS_TO_TICKS(5000));
     rootPath = _rootPath;
 
     SerialManager::enqueueLine("📀 Initializing SD card...");
@@ -28,6 +64,7 @@ void SdCardManager::init(const String &_rootPath) {
 }
 
 String SdCardManager::resolvePath(const String &path) {
+    LockGuard lock(pdMS_TO_TICKS(100));
     if (rootPath.isEmpty() || rootPath == "/") {
         if (path.startsWith("/")) {
             return path;
@@ -54,7 +91,7 @@ String SdCardManager::resolvePath(const String &path) {
 }
 
 bool SdCardManager::exists(const String &path) {
-    if (!mounted) {
+    if (const LockGuard lock(pdMS_TO_TICKS(1000)); !lock || !mounted) {
         return false;
     }
     const String fullPath = resolvePath(path);
@@ -69,7 +106,7 @@ bool SdCardManager::exists(const char *path) {
 }
 
 SdFile *SdCardManager::openFile(const String &path, oflag_t oflag) {
-    if (!mounted) {
+    if (const LockGuard lock(pdMS_TO_TICKS(1000)); !lock || !mounted) {
         return nullptr;
     }
     const String fullPath = resolvePath(path);
@@ -81,24 +118,44 @@ SdFile *SdCardManager::openFile(const String &path, oflag_t oflag) {
     return file;
 }
 
-SdFile *SdCardManager::openFile(const char *path, oflag_t oflag) {
+SdFile *SdCardManager::openFile(const char *path, const oflag_t oflag) {
     if (!path) {
         return nullptr;
     }
     return openFile(String(path), oflag);
 }
 
-bool SdCardManager::open(SdFile &file, const String &path, oflag_t oflag) {
-    if (!mounted) {
+bool SdCardManager::open(SdFile &file, const String &path, const oflag_t oflag) {
+    if (const LockGuard lock(pdMS_TO_TICKS(1000)); !lock || !mounted) {
         return false;
     }
     const String fullPath = resolvePath(path);
     return file.open(&sd, fullPath.c_str(), oflag);
 }
 
-bool SdCardManager::open(SdFile &file, const char *path, oflag_t oflag) {
+bool SdCardManager::open(SdFile &file, const char *path, const oflag_t oflag) {
     if (!path) {
         return false;
     }
     return open(file, String(path), oflag);
+}
+
+bool SdCardManager::closeFile(SdFile *&file) {
+    if (!file) {
+        return false;
+    }
+    if (const LockGuard lock(pdMS_TO_TICKS(1000)); !lock) {
+        return false;
+    }
+    const bool res = file->close();
+    delete file;
+    file = nullptr;
+    return res;
+}
+
+bool SdCardManager::close(SdFile &file) {
+    if (const LockGuard lock(pdMS_TO_TICKS(1000)); !lock) {
+        return false;
+    }
+    return file.close();
 }
