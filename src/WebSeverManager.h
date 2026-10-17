@@ -3,12 +3,13 @@
 
 #include <WiFi.h>
 #include <ESPAsyncWebServer.h>
-#include <SdFat.h>
+// #include <SdFat.h>
 
 class WebSeverManager {
     static AsyncWebServer server;
-    static SdFat sd;
+    // static SdFat sd;
     static inline bool mounted = false;
+    static const inline String webPath = "/web";
 
     static void handleFileRequest(AsyncWebServerRequest *request);
 

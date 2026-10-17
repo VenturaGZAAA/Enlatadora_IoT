@@ -20,6 +20,7 @@
 #include "CanningMachine.h"
 #include "EvenTheRGBLedHasManagers.h"
 #include "VoiceKeywordModule.h"
+#include "SdCardManager.h"
 
 void setup() {
     // --- 1. Core Hardware & Storage Initialization ---
@@ -45,7 +46,8 @@ void setup() {
 
     SerialManager::init();
 
-    // Initialize status RGB LED and set to White during early boot sequence.
+    SdCardManager::init("/CanningMachine");
+
     EvenTheRGBLedHasManagers::init();
     VoiceKeywordModule::init();
 

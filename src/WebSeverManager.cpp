@@ -1,20 +1,14 @@
 #include "WebSeverManager.h"
 #include "SerialManager.h"
+#include "SdCardManager.h"
 #include <SPI.h>
 #include <build_flags.h>
 
 #include <utility>
 #include "WifiManager.h"
-// --- SD Card Pins for ESP32-S3-DevKitM-1 ---
-
-#define SD_CS   11
-#define SD_MOSI 12
-#define SD_SCK  13
-#define SD_MISO 14
 
 // Static definitions
 AsyncWebServer WebSeverManager::server(80);
-SdFat WebSeverManager::sd;
 
 // ------------------------------------------------------------------
 // Setup
@@ -82,12 +76,12 @@ void WebSeverManager::handleFileRequest(AsyncWebServerRequest *request) {
     // 1. Determine the base file path (without compression suffix)
     String path = request->url();
     if (path == "/" || path == "") {
-        path = "/web/index.html";
+        path = webPath + "/index.html";
         if (onRootRequested) {
             onRootRequested();
         }
     } else {
-        path = "/web" + path;
+        path = webPath+ path;
     }
 
     const char *encoding = getEncoding(request);
@@ -148,7 +142,6 @@ void WebSeverManager::handleFileRequest(AsyncWebServerRequest *request) {
     // 7. Send the response
     request->send(response);
 
-    SerialManager::enqueueLine("response sent");
 }
 
 void WebSeverManager::handleFavicon(AsyncWebServerRequest *request) {
