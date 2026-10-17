@@ -31,6 +31,7 @@ public:
         this->b = b;
     }
 
+    [[nodiscard]] static RGBColor Off() { return {0, 0, 0}; }
     [[nodiscard]] static RGBColor Red() { return {255, 0, 0}; }
     [[nodiscard]] static RGBColor Green() { return {0, 255, 0}; }
     [[nodiscard]] static RGBColor Blue() { return {0, 0, 255}; }
@@ -39,6 +40,7 @@ public:
     [[nodiscard]] static RGBColor Cyan() { return {0, 255, 255}; }
     [[nodiscard]] static RGBColor White() { return {255, 255, 255}; }
 
+    [[nodiscard]] static RGBColor off() { return Off(); }
     [[nodiscard]] static RGBColor red() { return Red(); }
     [[nodiscard]] static RGBColor green() { return Green(); }
     [[nodiscard]] static RGBColor blue() { return Blue(); }
@@ -47,7 +49,7 @@ public:
     [[nodiscard]] static RGBColor cyan() { return Cyan(); }
     [[nodiscard]] static RGBColor white() { return White(); }
 
-    [[nodiscard]] RGBColor withAlpha(const uint8_t alpha) const {
+    [[nodiscard]] RGBColor withAlphaInt(const uint8_t alpha) const {
         return withAlpha(static_cast<float>(alpha) / 255.0f);
     }
 

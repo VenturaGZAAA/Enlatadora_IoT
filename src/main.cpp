@@ -50,7 +50,7 @@ void setup() {
     VoiceKeywordModule::init();
 
     delay(100);
-    EvenTheRGBLedHasManagers::setColor(RGBColor(255, 255, 255), 250);
+    EvenTheRGBLedHasManagers::setColor(RGBColor::White(), 250);
 
     // --- 2. Serial Interface Callbacks ---
     // Register handlers for incoming JSON payloads and commands received over Serial.
@@ -69,7 +69,7 @@ void setup() {
     }
     if (WifiManager::isFailedToConnect()) {
         SerialManager::enqueueLine("Failed to connect to WiFi");
-        EvenTheRGBLedHasManagers::setColor(RGBColor(255, 0, 0), 500);
+        EvenTheRGBLedHasManagers::setColor(RGBColor::Red(), 500);
     }
     delay(750);
 
@@ -86,11 +86,13 @@ void setup() {
             return;
         }
         WifiManager::wifiConfigJsonCallback(doc);
+        EvenTheRGBLedHasManagers::setColor(RGBColor::Green().withAlpha(0.4f), 500);
     });
 
     // MQTT Subscription: Administrative reboot request (safely shuts down actuators first).
     MqttManager::registerCallback("admin/reset/request", [](const char *p) {
         if (String(p) == "1") {
+            EvenTheRGBLedHasManagers::setColor(RGBColor::Yellow(), 500);
             CanningMachine::allOff();
             ESP.restart();
         }
@@ -145,7 +147,7 @@ void setup() {
     DashboardServer::setup();
 
     DashboardServer::setOnRootRequested([] {
-        EvenTheRGBLedHasManagers::setColor(RGBColor(200, 200, 0), 250);
+        EvenTheRGBLedHasManagers::setColor(RGBColor::Yellow().withAlphaInt(200), 250);
     });
 
     // Register keyword → event handlers
@@ -158,15 +160,15 @@ void setup() {
     EvenTheRGBLedHasManagers::setColorGenerator([] {
 
         if (VoiceKeywordModule::isListening()) {
-            return RGBColor(0, 0, 128);
+            return RGBColor::Blue().withAlpha(0.5f);
         }
 
         if (CanningMachine::isPaused()) {
-            return RGBColor(128, 0, 128);
+            return RGBColor::Magenta().withAlpha(0.5f);
         }
 
         if (CanningMachine::isRunning()) {
-            return RGBColor(0, 128, 0);
+            return RGBColor::Green().withAlpha(0.5f);
         }
 
         return RGBColor();
@@ -181,19 +183,19 @@ void setup() {
     CanningMachine::setup();
 
     CanningMachine::setOnStopCallback([] {
-        EvenTheRGBLedHasManagers::setColor(RGBColor(255, 0, 0),1000);
+        EvenTheRGBLedHasManagers::setColor(RGBColor::Red(),1000);
     });
     CanningMachine::setOnStartCallback([] {
-        EvenTheRGBLedHasManagers::setColor(RGBColor(0, 255, 0),1000);
+        EvenTheRGBLedHasManagers::setColor(RGBColor::Green(),1000);
     });
     CanningMachine::setOnPauseCallback([] {
-        EvenTheRGBLedHasManagers::setColor(RGBColor(255, 0, 255),1000);
+        EvenTheRGBLedHasManagers::setColor(RGBColor::Magenta(),1000);
     });
 
     delay(100);
 
     // Indicate successful initialization and operational readiness with Green LED.
-    EvenTheRGBLedHasManagers::setColor(RGBColor(0, 255, 0), 1000);
+    EvenTheRGBLedHasManagers::setColor(RGBColor::Green(), 1000);
 
     // Launch asynchronous state machine tasks for canning operations.
     CanningMachine::begin();
