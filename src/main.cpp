@@ -161,6 +161,14 @@ void setup() {
             return RGBColor(0, 0, 128);
         }
 
+        if (CanningMachine::isPaused()) {
+            return RGBColor(128, 0, 128);
+        }
+
+        if (CanningMachine::isRunning()) {
+            return RGBColor(0, 128, 0);
+        }
+
         return RGBColor();
     });
 

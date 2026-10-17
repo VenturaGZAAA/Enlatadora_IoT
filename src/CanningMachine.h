@@ -131,6 +131,8 @@ public:
     static String getJsonInputs();
 
     static String getStage();
+    static bool isRunning() {return machineRunning;}
+    static bool isPaused() {return machinePaused;}
 
     static String getSerializedState();
 
