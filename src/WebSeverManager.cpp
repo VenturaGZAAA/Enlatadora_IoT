@@ -1,7 +1,6 @@
 #include "WebSeverManager.h"
 #include "SerialManager.h"
 #include "SdCardManager.h"
-#include <SPI.h>
 #include <build_flags.h>
 
 #include <utility>
@@ -16,17 +15,7 @@ AsyncWebServer WebSeverManager::server(80);
 void WebSeverManager::setup() {
     SerialManager::enqueueLine("\n=== 🚀 ESP32-S3 Web Server ===");
 
-    // Initialize SD card
-    SerialManager::enqueueLine("📀 Initializing SD card...");
-    SPI.begin(SD_SCK, SD_MISO, SD_MOSI, SD_CS);
-
-
-    if (const SdSpiConfig cfg(SD_CS, SHARED_SPI, SD_SCK_MHZ(4), &SPI); !sd.begin(cfg)) {
-        SerialManager::enqueueLine(" ❌ Card Mount Failed!");
-        SPI.end();
-    } else {
-        mounted = true;
-        SerialManager::enqueueLine("✅ SD card mounted");
+    if (SdCardManager::isMounted()) {
         // Configure routes
         server.on("/favicon.ico", HTTP_GET, handleFavicon);
         server.onNotFound(handleFileRequest);
@@ -58,14 +47,14 @@ void WebSeverManager::setup() {
     // Start server
     server.begin();
     SerialManager::enqueueLine("🌐 HTTP server started on port 80");
-    if (mounted) {
+    if (SdCardManager::isMounted()) {
         SerialManager::enqueueLine("📍 Open http://" + WifiManager::getServerIP().toString() + " in your browser");
     }
     WifiManager::addService("http", "tcp", 80);
 }
 
 bool WebSeverManager::isMounted() {
-    return mounted;
+    return SdCardManager::isMounted();
 }
 
 void WebSeverManager::setOnRootRequested(std::function<void()> callback) {
@@ -94,7 +83,7 @@ void WebSeverManager::handleFileRequest(AsyncWebServerRequest *request) {
     if (hasEncoding) {
         if (strcmp(encoding, "br") == 0) {
             const String brPath = path + ".br";
-            if (sd.exists(brPath.c_str())) {
+            if (SdCardManager::exists(brPath)) {
                 filePath = brPath;
                 contentEncoding = "br";
             }
@@ -102,7 +91,7 @@ void WebSeverManager::handleFileRequest(AsyncWebServerRequest *request) {
 
         if (contentEncoding == nullptr && strcmp(encoding, "gzip") == 0) {
             const String gzPath = path + ".gz";
-            if (sd.exists(gzPath.c_str())) {
+            if (SdCardManager::exists(gzPath)) {
                 filePath = gzPath;
                 contentEncoding = "gzip";
             }
@@ -110,9 +99,8 @@ void WebSeverManager::handleFileRequest(AsyncWebServerRequest *request) {
     }
 
 
-    auto *file = new SdFile();
-    if (!file->open(filePath.c_str(), O_READ)) {
-        delete file;
+    auto *file = SdCardManager::openFile(filePath, O_READ);
+    if (!file) {
         request->send(404, "text/plain", "File not found");
         SerialManager::enqueueLine("File not found");
         return;
