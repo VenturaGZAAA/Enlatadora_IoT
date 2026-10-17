@@ -31,13 +31,13 @@ public:
         this->b = b;
     }
 
-    [[nodiscard]] static RGBColor Red() { return RGBColor(255, 0, 0); }
-    [[nodiscard]] static RGBColor Green() { return RGBColor(0, 255, 0); }
-    [[nodiscard]] static RGBColor Blue() { return RGBColor(0, 0, 255); }
-    [[nodiscard]] static RGBColor Yellow() { return RGBColor(255, 255, 0); }
-    [[nodiscard]] static RGBColor Magenta() { return RGBColor(255, 0, 255); }
-    [[nodiscard]] static RGBColor Cyan() { return RGBColor(0, 255, 255); }
-    [[nodiscard]] static RGBColor White() { return RGBColor(255, 255, 255); }
+    [[nodiscard]] static RGBColor Red() { return {255, 0, 0}; }
+    [[nodiscard]] static RGBColor Green() { return {0, 255, 0}; }
+    [[nodiscard]] static RGBColor Blue() { return {0, 0, 255}; }
+    [[nodiscard]] static RGBColor Yellow() { return {255, 255, 0}; }
+    [[nodiscard]] static RGBColor Magenta() { return {255, 0, 255}; }
+    [[nodiscard]] static RGBColor Cyan() { return {0, 255, 255}; }
+    [[nodiscard]] static RGBColor White() { return {255, 255, 255}; }
 
     [[nodiscard]] static RGBColor red() { return Red(); }
     [[nodiscard]] static RGBColor green() { return Green(); }
@@ -53,11 +53,11 @@ public:
 
     [[nodiscard]] RGBColor withAlpha(const float alpha) const {
         const float clampedAlpha = (alpha < 0.0f) ? 0.0f : (alpha > 1.0f ? 1.0f : alpha);
-        return RGBColor(
+        return {
             static_cast<uint8_t>(roundf(static_cast<float>(this->r) * clampedAlpha)),
             static_cast<uint8_t>(roundf(static_cast<float>(this->g) * clampedAlpha)),
             static_cast<uint8_t>(roundf(static_cast<float>(this->b) * clampedAlpha))
-        );
+        };
     }
 
     [[nodiscard]] uint8_t getR() const { return this->r; }
