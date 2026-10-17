@@ -1,4 +1,4 @@
-#include "DashboardServer.h"
+#include "WebSeverManager.h"
 #include "SerialManager.h"
 #include <SPI.h>
 #include <build_flags.h>
@@ -13,13 +13,13 @@
 #define SD_MISO 14
 
 // Static definitions
-AsyncWebServer DashboardServer::server(80);
-SdFat DashboardServer::sd;
+AsyncWebServer WebSeverManager::server(80);
+SdFat WebSeverManager::sd;
 
 // ------------------------------------------------------------------
 // Setup
 
-void DashboardServer::setup() {
+void WebSeverManager::setup() {
     SerialManager::enqueueLine("\n=== 🚀 ESP32-S3 Web Server ===");
 
     // Initialize SD card
@@ -70,15 +70,15 @@ void DashboardServer::setup() {
     WifiManager::addService("http", "tcp", 80);
 }
 
-bool DashboardServer::isMounted() {
+bool WebSeverManager::isMounted() {
     return mounted;
 }
 
-void DashboardServer::setOnRootRequested(std::function<void()> callback) {
+void WebSeverManager::setOnRootRequested(std::function<void()> callback) {
     onRootRequested = std::move(callback);
 }
 
-void DashboardServer::handleFileRequest(AsyncWebServerRequest *request) {
+void WebSeverManager::handleFileRequest(AsyncWebServerRequest *request) {
     // 1. Determine the base file path (without compression suffix)
     String path = request->url();
     if (path == "/" || path == "") {
@@ -151,13 +151,13 @@ void DashboardServer::handleFileRequest(AsyncWebServerRequest *request) {
     SerialManager::enqueueLine("response sent");
 }
 
-void DashboardServer::handleFavicon(AsyncWebServerRequest *request) {
+void WebSeverManager::handleFavicon(AsyncWebServerRequest *request) {
     request->send(204); // No content
 }
 
 // ------------------------------------------------------------------
 // Helpers
-String DashboardServer::getContentType(const String &filename) {
+String WebSeverManager::getContentType(const String &filename) {
     if (filename.endsWith(".html") || filename.endsWith(".htm")) return "text/html";
     if (filename.endsWith(".css")) return "text/css";
     if (filename.endsWith(".js")) return "application/javascript";
@@ -176,7 +176,7 @@ String DashboardServer::getContentType(const String &filename) {
     return "application/octet-stream";
 }
 
-const char *DashboardServer::getEncoding(const AsyncWebServerRequest *request) {
+const char *WebSeverManager::getEncoding(const AsyncWebServerRequest *request) {
     auto *header = request->getHeader("Accept-Encoding");
     if (!header) return nullptr;
 

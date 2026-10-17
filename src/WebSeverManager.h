@@ -5,7 +5,7 @@
 #include <ESPAsyncWebServer.h>
 #include <SdFat.h>
 
-class DashboardServer {
+class WebSeverManager {
     static AsyncWebServer server;
     static SdFat sd;
     static inline bool mounted = false;

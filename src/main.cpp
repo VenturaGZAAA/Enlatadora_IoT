@@ -11,7 +11,7 @@
 
 #include <build_flags.h>
 #include <WiFi.h>
-#include <DashboardServer.h>
+#include <WebSeverManager.h>
 #include <PicoMQTT.h>
 #include "MqttManager.h"
 #include <nvs_flash.h>
@@ -144,9 +144,9 @@ void setup() {
 
     // --- 6. Web Dashboard Server ---
     // Start local HTTP dashboard server for local monitoring and control.
-    DashboardServer::setup();
+    WebSeverManager::setup();
 
-    DashboardServer::setOnRootRequested([] {
+    WebSeverManager::setOnRootRequested([] {
         EvenTheRGBLedHasManagers::setColor(RGBColor::Yellow().withAlphaInt(200), 250);
     });
 

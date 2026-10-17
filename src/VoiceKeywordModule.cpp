@@ -140,7 +140,7 @@ void VoiceKeywordModule::init() {
         return;
     }
     initialized = true;
-    SerialManager::enqueueLine("[Voice] I2S microphone initialised");
+    SerialManager::enqueueLine("[Voice] I2S microphone initialized");
 }
 
 void VoiceKeywordModule::setOnStarted(std::function<void()> callback) {
