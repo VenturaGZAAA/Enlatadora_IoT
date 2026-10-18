@@ -15,12 +15,21 @@
 #include <PicoMQTT.h>
 #include "MqttManager.h"
 #include <nvs_flash.h>
-#include "SerialManager.h"
+#include "SerialMonitor.h"
 #include "WifiManager.h"
 #include "CanningMachine.h"
 #include "EvenTheRGBLedHasManagers.h"
 #include "VoiceKeywordModule.h"
 #include "SdCardManager.h"
+
+/*  ====== POWER CONSUMPTION IN STA MODE =====
+ *  idle: ~130 mA
+ *  on root sent: ~210 mA
+ *  while mqtt client connected: ~130 mA to ~150 mA
+ *  on IO page: ~150 mA
+ *  while audio capture: ~130 mA to ~150 mA
+ *  on audio/http transaction: ~220 mA
+ */
 
 void setup() {
     // --- 1. Core Hardware & Storage Initialization ---
@@ -44,7 +53,7 @@ void setup() {
     Serial.printf("Largest HEAP  block: %u bytes\n",
                   heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT));
 
-    SerialManager::init();
+    SerialMonitor::init();
 
     SdCardManager::init("/CanningMachine");
 
@@ -56,11 +65,11 @@ void setup() {
 
     // --- 2. Serial Interface Callbacks ---
     // Register handlers for incoming JSON payloads and commands received over Serial.
-    SerialManager::registerJsonCallback(WifiManager::wifiConfigJsonCallback);
-    SerialManager::registerJsonCallback(CanningMachine::inputsWriteJsonCallback);
-    SerialManager::registerJsonCallback(CanningMachine::outputsWriteJsonCallback);
-    SerialManager::registerCallback(CanningMachine::processCommands);
-    SerialManager::registerCallback(VoiceKeywordModule::processCommands);
+    SerialMonitor::registerJsonCallback(WifiManager::wifiConfigJsonCallback);
+    SerialMonitor::registerJsonCallback(CanningMachine::inputsWriteJsonCallback);
+    SerialMonitor::registerJsonCallback(CanningMachine::outputsWriteJsonCallback);
+    SerialMonitor::registerCallback(CanningMachine::processCommands);
+    SerialMonitor::registerCallback(VoiceKeywordModule::processCommands);
 
     // --- 3. Network Connection (Wi-Fi) ---
     // Connect to configured Wi-Fi network; restart system if configuration/connection fails.
@@ -70,7 +79,7 @@ void setup() {
         ESP.restart();
     }
     if (WifiManager::isFailedToConnect()) {
-        SerialManager::enqueueLine("Failed to connect to WiFi");
+        SerialMonitor::enqueueLine("Failed to connect to WiFi");
         EvenTheRGBLedHasManagers::setColor(RGBColor::Red(), 500);
     }
     delay(750);
@@ -83,8 +92,8 @@ void setup() {
         JsonDocument doc;
         const DeserializationError error = deserializeJson(doc, payload);
         if (error) {
-            SerialManager::enqueue("Error deserializing WiFi config json on MQTT: ");
-            SerialManager::enqueueLine(error.c_str());
+            SerialMonitor::enqueue("Error deserializing WiFi config json on MQTT: ");
+            SerialMonitor::enqueueLine(error.c_str());
             return;
         }
         WifiManager::wifiConfigJsonCallback(doc);
@@ -107,8 +116,8 @@ void setup() {
         JsonDocument doc;
         const DeserializationError error = deserializeJson(doc, payload);
         if (error) {
-            SerialManager::enqueue("Error deserializing outputs write over MQTT: ");
-            SerialManager::enqueueLine(error.c_str());
+            SerialMonitor::enqueue("Error deserializing outputs write over MQTT: ");
+            SerialMonitor::enqueueLine(error.c_str());
             return;
         }
         CanningMachine::outputsWriteJsonCallback(doc);
@@ -120,8 +129,8 @@ void setup() {
         JsonDocument doc;
         const DeserializationError error = deserializeJson(doc, payload);
         if (error) {
-            SerialManager::enqueue("Error deserializing inputs write over MQTT: ");
-            SerialManager::enqueueLine(error.c_str());
+            SerialMonitor::enqueue("Error deserializing inputs write over MQTT: ");
+            SerialMonitor::enqueueLine(error.c_str());
             return;
         }
         CanningMachine::inputsWriteJsonCallback(doc);

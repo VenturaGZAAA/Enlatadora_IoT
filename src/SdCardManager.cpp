@@ -3,7 +3,7 @@
 //
 
 #include "SdCardManager.h"
-#include "SerialManager.h"
+#include "SerialMonitor.h"
 #include <SPI.h>
 
 #define SD_CS   11
@@ -50,16 +50,16 @@ void SdCardManager::init(const String &_rootPath) {
     LockGuard lock(pdMS_TO_TICKS(5000));
     rootPath = _rootPath;
 
-    SerialManager::enqueueLine("📀 Initializing SD card...");
+    SerialMonitor::enqueueLine("📀 Initializing SD card...");
     SPI.begin(SD_SCK, SD_MISO, SD_MOSI, SD_CS);
 
     if (const SdSpiConfig cfg(SD_CS, SHARED_SPI, SD_SCK_MHZ(4), &SPI); !sd.begin(cfg)) {
-        SerialManager::enqueueLine(" ❌ Card Mount Failed!");
+        SerialMonitor::enqueueLine(" ❌ Card Mount Failed!");
         SPI.end();
         mounted = false;
     } else {
         mounted = true;
-        SerialManager::enqueueLine("✅ SD card mounted");
+        SerialMonitor::enqueueLine("✅ SD card mounted");
     }
 }
 

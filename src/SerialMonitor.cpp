@@ -2,7 +2,7 @@
 // Created by urzu-7 on 8/31/26.
 //
 #include <Arduino.h>
-#include "SerialManager.h"
+#include "SerialMonitor.h"
 
 #include <string>
 
@@ -13,7 +13,7 @@
 
 // uint32_t SerialQueue::period = 10;
 
-void SerialManager::init(const uint32_t _microsecondsDelay) {
+void SerialMonitor::init(const uint32_t _microsecondsDelay) {
     period = _microsecondsDelay;
     if (!queueMutex) {
         queueMutex = xSemaphoreCreateMutex();
@@ -21,14 +21,14 @@ void SerialManager::init(const uint32_t _microsecondsDelay) {
     xTaskCreate(reinterpret_cast<TaskFunction_t>(loop), "SerialQueue", 8192, nullptr, 5, &task);
 }
 
-[[noreturn]] void SerialManager::loop() {
+[[noreturn]] void SerialMonitor::loop() {
     while (true) {
         run();
         vTaskDelay(pdMS_TO_TICKS(period));
     }
 }
 
-void SerialManager::run() {
+void SerialMonitor::run() {
     // 1. Drain output queue safely under mutex protection
     if (queueMutex && xSemaphoreTake(queueMutex, pdMS_TO_TICKS(20)) == pdTRUE) {
         while (!serialQueue.empty()) {
@@ -67,7 +67,7 @@ void SerialManager::run() {
     }
 }
 
-void SerialManager::enqueue(const std::string &message) {
+void SerialMonitor::enqueue(const std::string &message) {
     if (!queueMutex) return;
     if (xSemaphoreTake(queueMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
         if (serialQueue.size() < 100) {
@@ -78,32 +78,32 @@ void SerialManager::enqueue(const std::string &message) {
     }
 }
 
-void SerialManager::enqueue(const String &message) {
+void SerialMonitor::enqueue(const String &message) {
     enqueue(std::string(message.c_str()));
 }
 
-void SerialManager::enqueue(const char *str) {
+void SerialMonitor::enqueue(const char *str) {
     if (str) {
         enqueue(std::string(str));
     }
 }
 
-void SerialManager::enqueueLine(const std::string &message) {
+void SerialMonitor::enqueueLine(const std::string &message) {
     enqueue(message + "\r\n");
 }
 
-void SerialManager::enqueueLine(const String &message) {
+void SerialMonitor::enqueueLine(const String &message) {
     enqueue(message + "\r\n");
 }
 
-void SerialManager::enqueueLine(const char *str) {
+void SerialMonitor::enqueueLine(const char *str) {
     enqueue(str + String("\r\n"));
 }
 
-void SerialManager::registerCallback(const std::function<void(const char *)> &callback) {
+void SerialMonitor::registerCallback(const std::function<void(const char *)> &callback) {
     serialCallbacks.push_back(callback);
 }
 
-void SerialManager::registerJsonCallback(const std::function<void(JsonDocument)> &callback) {
+void SerialMonitor::registerJsonCallback(const std::function<void(JsonDocument)> &callback) {
     serialJsonCallbacks.push_back(callback);
 }

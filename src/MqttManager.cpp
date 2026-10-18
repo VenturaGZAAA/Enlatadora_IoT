@@ -6,7 +6,7 @@
 #include <PicoWebsocket.h>
 #include "MqttManager.h"
 #include <build_flags.h>
-#include "SerialManager.h"
+#include "SerialMonitor.h"
 #include <esp_task_wdt.h>
 
 WiFiServer MqttManager::tcp_server(1883);

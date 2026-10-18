@@ -5,7 +5,7 @@
 #include "CanningMachine.h"
 #include <ArduinoJson.h>
 
-#include "SerialManager.h"
+#include "SerialMonitor.h"
 #include <build_flags.h>
 
 #include <utility>
@@ -35,7 +35,7 @@ void CanningMachine::startAutoUpdate() {
 
 void CanningMachine::begin() {
     if (!setUp) {
-        SerialManager::enqueueLine("Canning machine has not been set up");
+        SerialMonitor::enqueueLine("Canning machine has not been set up");
     }
 
     stage = Stage::Reposo;
@@ -189,11 +189,11 @@ void CanningMachine::outputsWriteJsonCallback(const JsonDocument &doc) {
         if (doc["Q" + String(i)].is<bool>()) {
             if (!authorized) {
                 if (!allowOutputOverride) {
-                    SerialManager::enqueueLine("Output override not enabled");
+                    SerialMonitor::enqueueLine("Output override not enabled");
                     return;
                 }
                 if (machineRunning && !machinePaused) {
-                    SerialManager::enqueueLine(
+                    SerialMonitor::enqueueLine(
                         "Output override while the machine is running and not paused is not allowed");
                     return;
                 }
@@ -212,7 +212,7 @@ void CanningMachine::inputsWriteJsonCallback(const JsonDocument &doc) {
         }
     }
 #else
-    SerialManager::enqueueLine("Input override not authorized");
+    SerialMonitor::enqueueLine("Input override not authorized");
 #endif
 }
 
@@ -228,7 +228,7 @@ void CanningMachine::processCommands(const char *command) {
     const auto cmd = String(command);
 
     const String msg = "Command received: " + cmd;
-    SerialManager::enqueueLine(msg);
+    SerialMonitor::enqueueLine(msg);
 
     if (cmd == "AuthorizeOutputOverride") {
         allowOutputOverride = true;
@@ -521,7 +521,7 @@ void CanningMachine::updateAuthorization() {
 
 void CanningMachine::stop() {
     if (taskHandle != nullptr) {
-        SerialManager::enqueueLine("Stopping canning machine");
+        SerialMonitor::enqueueLine("Stopping canning machine");
         vTaskDelete(taskHandle);
         taskHandle = nullptr;
         allOff();

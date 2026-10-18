@@ -8,7 +8,7 @@
 #include <build_flags.h>
 #include <ESPmDNS.h>
 #include <ArduinoJson.h>
-#include <SerialManager.h>
+#include <SerialMonitor.h>
 #include "WifiManager.h"
 
 bool WifiManager::start_ap = false;
@@ -114,7 +114,7 @@ void WifiManager::wifiConfigJsonCallback(const JsonDocument &doc) {
         start_ap = doc["start_ap"];
         prefs.putBool("start_ap", start_ap);
         const auto mode = start_ap ? "AP" : "STA";
-        SerialManager::enqueueLine("WiFi starter mode set to: " + String(mode));
+        SerialMonitor::enqueueLine("WiFi starter mode set to: " + String(mode));
         if (start_ap) {
             prefs.end();
             return;
@@ -131,13 +131,13 @@ void WifiManager::wifiConfigJsonCallback(const JsonDocument &doc) {
     const char *pass = doc["pass"];
 
     if (strlen(ssid) == 0) {
-        SerialManager::enqueueLine("SSID is empty");
+        SerialMonitor::enqueueLine("SSID is empty");
         prefs.end();
         return;
     }
 
     prefs.putString("ssid", ssid);
     prefs.putString("pass", pass);
-    SerialManager::enqueueLine("WiFi credentials overwritten");
+    SerialMonitor::enqueueLine("WiFi credentials overwritten");
     prefs.end();
 }

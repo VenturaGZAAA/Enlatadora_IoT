@@ -1,5 +1,5 @@
 #include "WebSeverManager.h"
-#include "SerialManager.h"
+#include "SerialMonitor.h"
 #include "SdCardManager.h"
 #include <build_flags.h>
 
@@ -13,7 +13,7 @@ AsyncWebServer WebSeverManager::server(80);
 // Setup
 
 void WebSeverManager::setup() {
-    SerialManager::enqueueLine("\n=== 🚀 ESP32-S3 Web Server ===");
+    SerialMonitor::enqueueLine("\n=== 🚀 ESP32-S3 Web Server ===");
 
     if (SdCardManager::isMounted()) {
         // Configure routes
@@ -35,8 +35,8 @@ void WebSeverManager::setup() {
                   JsonDocument doc;
                   const DeserializationError error = deserializeJson(doc, data, length);
                   if (error) {
-                      SerialManager::enqueue("Error parsing JSON for Wifi config on HTTP: ");
-                      SerialManager::enqueueLine(error.c_str());
+                      SerialMonitor::enqueue("Error parsing JSON for Wifi config on HTTP: ");
+                      SerialMonitor::enqueueLine(error.c_str());
                       request->_tempObject = new String(error.c_str());
                       return;
                   }
@@ -46,9 +46,9 @@ void WebSeverManager::setup() {
 
     // Start server
     server.begin();
-    SerialManager::enqueueLine("🌐 HTTP server started on port 80");
+    SerialMonitor::enqueueLine("🌐 HTTP server started on port 80");
     if (SdCardManager::isMounted()) {
-        SerialManager::enqueueLine("📍 Open http://" + WifiManager::getServerIP().toString() + " in your browser");
+        SerialMonitor::enqueueLine("📍 Open http://" + WifiManager::getServerIP().toString() + " in your browser");
     }
     WifiManager::addService("http", "tcp", 80);
 }
@@ -100,7 +100,7 @@ void WebSeverManager::handleFileRequest(AsyncWebServerRequest *request) {
     auto *file = SdCardManager::openFile(filePath, O_READ);
     if (!file) {
         request->send(404, "text/plain", "File not found");
-        SerialManager::enqueueLine("File not found");
+        SerialMonitor::enqueueLine("File not found");
         return;
     }
 
