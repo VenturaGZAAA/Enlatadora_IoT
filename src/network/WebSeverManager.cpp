@@ -1,6 +1,8 @@
 #include "WebSeverManager.h"
 #include "drivers/universal/SerialMonitor.h"
+#ifdef SD_CARD_CONNECTED
 #include "drivers/specific/SdCardManager.h"
+#endif
 #include "config/build_flags.h"
 #include "drivers/universal/WifiManager.h"
 
@@ -13,14 +15,13 @@ AsyncWebServer WebSeverManager::server(80);
 // Setup
 
 void WebSeverManager::setup() {
-    SerialMonitor::enqueueLine("\n=== 🚀 ESP32-S3 Web Server ===");
-
+#ifdef SD_CARD_CONNECTED
     if (SdCardManager::isMounted()) {
         // Configure routes
         server.on("/favicon.ico", HTTP_GET, handleFavicon);
         server.onNotFound(handleFileRequest);
     }
-
+#endif
     server.on("/config/wifi/set", HTTP_POST, [](AsyncWebServerRequest *request) {
                   if (request->_tempObject == nullptr) {
                       request->send(200, "application/json", R"({"status":"success"})");
@@ -47,30 +48,37 @@ void WebSeverManager::setup() {
     // Start server
     server.begin();
     SerialMonitor::enqueueLine("🌐 HTTP server started on port 80");
+#ifdef SD_CARD_CONNECTED
     if (SdCardManager::isMounted()) {
         SerialMonitor::enqueueLine("📍 Open http://" + WifiManager::getServerIP().toString() + " in your browser");
     }
+#endif
     WifiManager::addService("http", "tcp", 80);
 }
 
-bool WebSeverManager::isMounted() {
-    return SdCardManager::isMounted();
-}
+#ifdef SD_CARD_CONNECTED
 
 void WebSeverManager::setOnRootRequested(std::function<void()> callback) {
     onRootRequested = std::move(callback);
 }
+#endif
+
 
 void WebSeverManager::handleFileRequest(AsyncWebServerRequest *request) {
     // 1. Determine the base file path (without compression suffix)
     String path = request->url();
+
+#ifndef SD_CARD_CONNECTED
+    SerialMonitor::enqueueLine("🌐 HTTP server request unhandled: " + path);
+    request->send(404, "text/plain", "File not found");
+#else
     if (path == "/" || path == "") {
         path = webPath + "/index.html";
         if (onRootRequested) {
             onRootRequested();
         }
     } else {
-        path = webPath+ path;
+        path = webPath + path;
     }
 
     const char *encoding = getEncoding(request);
@@ -100,7 +108,7 @@ void WebSeverManager::handleFileRequest(AsyncWebServerRequest *request) {
     auto *file = SdCardManager::openFile(filePath, O_READ);
     if (!file) {
         request->send(404, "text/plain", "File not found");
-        SerialMonitor::enqueueLine("File not found");
+        SerialMonitor::enqueueLine("File not found: " + filePath);
         return;
     }
 
@@ -130,8 +138,9 @@ void WebSeverManager::handleFileRequest(AsyncWebServerRequest *request) {
     }
     // 7. Send the response
     request->send(response);
-
+#endif
 }
+
 
 void WebSeverManager::handleFavicon(AsyncWebServerRequest *request) {
     request->send(204); // No content
