@@ -5,7 +5,7 @@
 #include "CanningMachine.h"
 #include <ArduinoJson.h>
 
-#include "drivers/SerialMonitor.h"
+#include "drivers/universal/SerialMonitor.h"
 #include "config/build_flags.h"
 
 #include <utility>

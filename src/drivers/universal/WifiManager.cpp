@@ -8,7 +8,7 @@
 #include "config/build_flags.h"
 #include <ESPmDNS.h>
 #include <ArduinoJson.h>
-#include "drivers/SerialMonitor.h"
+#include "drivers/universal/SerialMonitor.h"
 #include "WifiManager.h"
 
 bool WifiManager::start_ap = false;

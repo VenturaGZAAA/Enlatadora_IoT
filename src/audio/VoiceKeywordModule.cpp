@@ -5,8 +5,8 @@
 #include "VoiceKeywordModule.h"
 #include "config/secrets.h"
 #include "config/build_flags.h"
-#include "drivers/SerialMonitor.h"
-#include "network/WifiManager.h"
+#include "drivers/universal/SerialMonitor.h"
+#include "drivers/universal/WifiManager.h"
 #include <utility>
 #include <driver/gpio.h>
 

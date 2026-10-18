@@ -75,12 +75,9 @@ public:
     };
 };
 
-#ifndef RGB_BUILTIN
-#define RGB_BUILTIN 48
-#endif
 
 class EvenTheRGBLedHasManagers {
-    static constexpr uint8_t RGB_PIN = RGB_BUILTIN;
+    static constexpr uint8_t RGB_PIN = 48;
 
     static inline TaskHandle_t loopHandle = nullptr;
     static inline SemaphoreHandle_t ledMutex = nullptr;

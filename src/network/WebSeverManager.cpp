@@ -1,8 +1,8 @@
 #include "WebSeverManager.h"
-#include "drivers/SerialMonitor.h"
-#include "drivers/SdCardManager.h"
+#include "drivers/universal/SerialMonitor.h"
+#include "drivers/specific/SdCardManager.h"
 #include "config/build_flags.h"
-#include "WifiManager.h"
+#include "drivers/universal/WifiManager.h"
 
 #include <utility>
 

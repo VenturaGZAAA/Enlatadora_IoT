@@ -7,7 +7,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 include_directories(
     src
     src/config
-    src/drivers
+    src/drivers/universal
+    src/drivers/s3
+    src/drivers/specific
     src/machine
     src/network
     src/audio

@@ -15,13 +15,13 @@
 
 #include "config/build_flags.h"
 #include "audio/VoiceKeywordModule.h"
-#include "drivers/EvenTheRGBLedHasManagers.h"
-#include "drivers/SdCardManager.h"
-#include "drivers/SerialMonitor.h"
+#include "drivers/s3/EvenTheRGBLedHasManagers.h"
+#include "drivers/specific/SdCardManager.h"
+#include "drivers/universal/SerialMonitor.h"
+#include "drivers/universal/WifiManager.h"
 #include "machine/CanningMachine.h"
 #include "network/MqttManager.h"
 #include "network/WebSeverManager.h"
-#include "network/WifiManager.h"
 
 /*  ====== POWER CONSUMPTION IN STA MODE =====
  *  idle: ~130 mA
