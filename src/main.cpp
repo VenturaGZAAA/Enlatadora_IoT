@@ -75,7 +75,7 @@ void setup() {
 
     // --- 3. Network Connection (Wi-Fi) ---
     // Connect to configured Wi-Fi network; restart system if configuration/connection fails.
-    if (!WifiManager::setup()) {
+    if (!WifiManager::setup("Enlatadora-s3","12345678")) {
         Serial.println("Failed to setup WiFi");
         delay(1000);
         ESP.restart();

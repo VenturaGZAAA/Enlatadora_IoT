@@ -18,7 +18,7 @@ class WifiManager {
 
     static bool connectToNetwork();
 
-    static bool startAccessPoint();
+    static bool startAccessPoint(const String& ap_ssid, const String& ap_password);
 
     static void setupMdns();
 
@@ -29,7 +29,7 @@ public:
 
     static void wifiConfigJsonCallback(const JsonDocument &doc);
 
-    static bool setup();
+    static bool setup(const String& ap_ssid= "", const String& ap_password = "");
 
     static bool isConnected() { return sta_connected; }
     static bool isFailedToConnect() { return !start_ap && !sta_connected; }

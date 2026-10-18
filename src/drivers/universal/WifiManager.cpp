@@ -4,7 +4,7 @@
 
 #include <Arduino.h>
 #include <WiFi.h>
-#include "config/secrets.h"
+#include "wifi_secrets.h"
 #include "config/build_flags.h"
 #include <ESPmDNS.h>
 #include <ArduinoJson.h>
@@ -14,7 +14,7 @@
 bool WifiManager::start_ap = false;
 bool WifiManager::sta_connected = false;
 const char *WifiManager::hostname = "enlatadora-s3";
-IPAddress WifiManager::server_ip = IPAddress(192, 168, 4, 10);
+IPAddress WifiManager::server_ip = IPAddress(192, 168, 4, 1);
 
 void WifiManager::setupMdns() {
     if (!MDNS.begin(hostname)) {
@@ -68,20 +68,20 @@ bool WifiManager::connectToNetwork() {
     return false;
 }
 
-bool WifiManager::startAccessPoint() {
+bool WifiManager::startAccessPoint(const String& ap_ssid, const String& ap_password) {
     const auto gateway = IPAddress(192, 168, 4, 1);
     const auto subnet = IPAddress(255, 255, 255, 0);
 
     WiFi.softAPConfig(server_ip, gateway, subnet);
 
-    if (WiFi.softAP(AP_SSID, AP_PASSWORD, 1, 0, 4)) {
-        Serial.println("AP started");
-        Serial.print("Network name: ");
-        Serial.println(AP_SSID);
-        Serial.print("Password: ");
-        Serial.println(AP_PASSWORD);
-        Serial.print("IP address: ");
-        Serial.println(server_ip);
+    if (WiFi.softAP(ap_ssid, ap_password, 1, 0, 4)) {
+        SerialMonitor::enqueueLine("AP started");
+        SerialMonitor::enqueue("Network name: ");
+        SerialMonitor::enqueueLine(ap_ssid);
+        SerialMonitor::enqueue("Password: ");
+        SerialMonitor::enqueueLine(ap_password);
+        SerialMonitor::enqueue("IP address: ");
+        SerialMonitor::enqueueLine(server_ip.toString());
         setupMdns();
         return true;
     }
@@ -89,7 +89,7 @@ bool WifiManager::startAccessPoint() {
     return false;
 }
 
-bool WifiManager::setup() {
+bool WifiManager::setup(const String& ap_ssid, const String& ap_password) {
     prefs.begin("wifi", false);
 
     start_ap = prefs.getBool("start_ap", false);
@@ -101,7 +101,7 @@ bool WifiManager::setup() {
     if (sta_connected) {
         return true;
     }
-    return startAccessPoint();
+    return startAccessPoint(ap_ssid, ap_password);
 }
 
 String WifiManager::getSerializedState() {
