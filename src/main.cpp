@@ -42,7 +42,8 @@ void setup() {
     ESP_ERROR_CHECK(err);
 
     // Initialize serial communication and serial command dispatcher.
-    Serial.begin(115200);
+    SerialMonitor::init();
+
 
     Serial.printf("PSRAM found: %d\n", psramFound());
     Serial.printf("PSRAM size:  %u bytes\n", ESP.getPsramSize());
@@ -53,7 +54,6 @@ void setup() {
     Serial.printf("Largest HEAP  block: %u bytes\n",
                   heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT));
 
-    SerialMonitor::init();
 
     SdCardManager::init("/CanningMachine");
 

@@ -45,7 +45,7 @@ public:
 
     static void run();
 
-    static void init(uint32_t _microsecondsDelay = 10);
+    static void init(uint64_t baudRate = 115200,uint32_t _microsecondsDelay = 10);
 };
 
 

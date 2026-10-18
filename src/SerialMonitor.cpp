@@ -13,7 +13,8 @@
 
 // uint32_t SerialQueue::period = 10;
 
-void SerialMonitor::init(const uint32_t _microsecondsDelay) {
+void SerialMonitor::init(const uint64_t baudRate,const uint32_t _microsecondsDelay) {
+    Serial.begin(baudRate);
     period = _microsecondsDelay;
     if (!queueMutex) {
         queueMutex = xSemaphoreCreateMutex();
