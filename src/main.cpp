@@ -24,6 +24,7 @@
 #include "network/WebSeverManager.h"
 
 /*  ====== POWER CONSUMPTION IN STA MODE =====
+ *  current hardware: ESP32-S3 (this), ESP32-S3 (empty), microphone, sd card reader.
  *  idle: ~130 mA
  *  on root sent: ~210 mA
  *  while mqtt client connected: ~130 mA to ~150 mA
