@@ -31,8 +31,18 @@ void WifiManager::addService(const char *serviceName, const char *serviceType, s
 }
 
 bool WifiManager::connectToNetwork() {
-    const auto ssid = prefs.getString("ssid", secret_ssid);
-    const auto pass = prefs.getString("pass", secret_password);
+#ifdef SECRET_SSID
+    const auto ssid = prefs.getString("ssid", SECRET_SSID);
+    const auto pass = prefs.getString("pass", SECRET_PASSWORD);
+
+#else
+    const auto ssid = prefs.getString("ssid");
+    const auto pass = prefs.getString("pass");
+#endif
+
+    if (ssid.length() == 0) {
+        return false;
+    }
 
     // --- Connect to Wi-Fi ---
     Serial.print("📶 Connecting to Wi-Fi");
