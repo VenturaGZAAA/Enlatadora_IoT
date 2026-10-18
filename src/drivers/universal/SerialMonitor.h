@@ -20,9 +20,10 @@ class SerialMonitor {
     static inline TaskHandle_t task = nullptr;
     static inline SemaphoreHandle_t queueMutex = nullptr;
     static inline String rxBuffer = "";
-    static inline uint32_t period = 10;
+    static inline uint32_t period = 25;
 
     [[noreturn]] static void loop();
+    static void run();
 
 public:
     SerialMonitor() = delete;
@@ -43,9 +44,8 @@ public:
 
     static void registerJsonCallback(const std::function<void(JsonDocument)> &callback);
 
-    static void run();
 
-    static void init(uint64_t baudRate = 115200,uint32_t _microsecondsDelay = 10);
+    static void init(uint64_t baudRate = 115200,uint32_t _microsecondsDelay = 25);
 };
 
 
