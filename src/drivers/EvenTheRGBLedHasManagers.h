@@ -75,7 +75,9 @@ public:
     };
 };
 
+#ifndef RGB_BUILTIN
 #define RGB_BUILTIN 48
+#endif
 
 class EvenTheRGBLedHasManagers {
     static constexpr uint8_t RGB_PIN = RGB_BUILTIN;

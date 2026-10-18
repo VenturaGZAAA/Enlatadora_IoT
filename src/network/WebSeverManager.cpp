@@ -1,10 +1,10 @@
 #include "WebSeverManager.h"
-#include "SerialMonitor.h"
-#include "SdCardManager.h"
-#include <build_flags.h>
+#include "drivers/SerialMonitor.h"
+#include "drivers/SdCardManager.h"
+#include "config/build_flags.h"
+#include "WifiManager.h"
 
 #include <utility>
-#include "WifiManager.h"
 
 // Static definitions
 AsyncWebServer WebSeverManager::server(80);

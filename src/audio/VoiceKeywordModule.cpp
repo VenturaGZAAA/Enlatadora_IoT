@@ -3,11 +3,11 @@
 //
 
 #include "VoiceKeywordModule.h"
-#include <secrets.h>
+#include "config/secrets.h"
+#include "config/build_flags.h"
+#include "drivers/SerialMonitor.h"
+#include "network/WifiManager.h"
 #include <utility>
-#include <build_flags.h>
-#include "SerialMonitor.h"
-#include <WifiManager.h>
 #include <driver/gpio.h>
 
 QueueHandle_t VoiceKeywordModule::audioQueue = nullptr;

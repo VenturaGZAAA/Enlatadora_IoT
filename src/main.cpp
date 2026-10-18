@@ -9,18 +9,19 @@
  *    and launches the canning state machine.
  */
 
-#include <build_flags.h>
 #include <WiFi.h>
-#include <WebSeverManager.h>
 #include <PicoMQTT.h>
-#include "MqttManager.h"
 #include <nvs_flash.h>
-#include "SerialMonitor.h"
-#include "WifiManager.h"
-#include "CanningMachine.h"
-#include "EvenTheRGBLedHasManagers.h"
-#include "VoiceKeywordModule.h"
-#include "SdCardManager.h"
+
+#include "config/build_flags.h"
+#include "audio/VoiceKeywordModule.h"
+#include "drivers/EvenTheRGBLedHasManagers.h"
+#include "drivers/SdCardManager.h"
+#include "drivers/SerialMonitor.h"
+#include "machine/CanningMachine.h"
+#include "network/MqttManager.h"
+#include "network/WebSeverManager.h"
+#include "network/WifiManager.h"
 
 /*  ====== POWER CONSUMPTION IN STA MODE =====
  *  idle: ~130 mA

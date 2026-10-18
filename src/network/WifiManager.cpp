@@ -4,11 +4,11 @@
 
 #include <Arduino.h>
 #include <WiFi.h>
-#include <secrets.h>
-#include <build_flags.h>
+#include "config/secrets.h"
+#include "config/build_flags.h"
 #include <ESPmDNS.h>
 #include <ArduinoJson.h>
-#include <SerialMonitor.h>
+#include "drivers/SerialMonitor.h"
 #include "WifiManager.h"
 
 bool WifiManager::start_ap = false;
