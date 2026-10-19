@@ -5,18 +5,20 @@
 #include "UARTManager.h"
 
 
-UARTManager::UARTManager(const HardwareSerial &uartPort, const uint8_t rxPin, const uint8_t txPin,
-                         const uint32_t baudRate, const uint32_t period) : uartPort(uartPort) {
-    this->uartPort.begin(baudRate, SERIAL_8N1, rxPin, txPin);
-    this->period = period;
-    this->uartPort.setTimeout(100);
-    this->serialQueue = std::queue<std::string>();
-    this->serialCallbacks = std::vector<std::function<void(const char *)> >();
-    this->serialJsonCallbacks = std::vector<std::function<void(JsonDocument)> >();
+UARTManager::UARTManager(HardwareSerial &uartPort, const int8_t rxPin, const int8_t txPin,
+                         const uint32_t baudRate, const uint32_t period)
+    : uartPort(uartPort), rxPin(rxPin), txPin(txPin), baudRate(baudRate), period(period) {
 }
 
 void UARTManager::init() {
-    xTaskCreate(taskEntry, "SerialQueue", 8192, this, 1, &task);
+    uartPort.begin(baudRate, SERIAL_8N1, rxPin, txPin);
+    uartPort.setTimeout(1000);
+    if (!queueMutex) {
+        queueMutex = xSemaphoreCreateMutex();
+    }
+    if (!task) {
+        xTaskCreate(taskEntry, "SerialQueue", 8192, this, 1, &task);
+    }
 }
 
 void UARTManager::taskEntry(void *pv) {

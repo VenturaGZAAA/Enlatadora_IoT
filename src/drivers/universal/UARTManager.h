@@ -13,17 +13,21 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <freertos/semphr.h>
+#include <memory>
 
 
 class UARTManager {
-    HardwareSerial uartPort;
+    HardwareSerial &uartPort;
+    int8_t rxPin;
+    int8_t txPin;
+    uint32_t baudRate;
+    uint32_t period;
     std::queue<std::string> serialQueue;
     std::vector<std::function<void(const char *)> > serialCallbacks;
     std::vector<std::function<void(JsonDocument)> > serialJsonCallbacks;
     TaskHandle_t task = nullptr;
     SemaphoreHandle_t queueMutex = nullptr;
     String rxBuffer = "";
-    uint32_t period = 25;
 
     static void taskEntry(void *pv);
 
@@ -31,9 +35,17 @@ class UARTManager {
 
     void run();
 
+    UARTManager(HardwareSerial &uartPort, int8_t rxPin, int8_t txPin, uint32_t baudRate,
+               uint32_t period);
+
+
 public:
-    UARTManager(const HardwareSerial &uartPort, uint8_t rxPin, uint8_t txPin, uint32_t baudRate = 115200,
-                uint32_t period = 25);
+    static std::unique_ptr<UARTManager> reserve() { return {}; }
+
+    static std::unique_ptr<UARTManager> create(HardwareSerial &uartPort, const int8_t rxPin, const int8_t txPin, const uint32_t baudRate = 115200,
+               const uint32_t period = 25) {
+        return std::unique_ptr<UARTManager>(new UARTManager(uartPort, rxPin, txPin, baudRate, period));
+    }
 
     void init();
 

@@ -293,7 +293,9 @@ void CanningMachine::updateAuthorization() {
 [[noreturn]] void CanningMachine::run() {
 
     for (;;) {
-        updateAuthorization();
+        // updateAuthorization();
+
+        continue;
 
         switch (stage) {
             case Stage::Reposo:
