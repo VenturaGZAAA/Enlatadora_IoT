@@ -23,9 +23,11 @@ void SerialMonitor::init(const uint64_t baudRate,const uint32_t _microsecondsDel
 }
 
 [[noreturn]] void SerialMonitor::loop() {
+    const TickType_t xFrequency = pdMS_TO_TICKS(period);
+    TickType_t xLastWakeTime = xTaskGetTickCount();
     while (true) {
         run();
-        vTaskDelay(pdMS_TO_TICKS(period));
+        vTaskDelayUntil(&xLastWakeTime, xFrequency);
     }
 }
 
