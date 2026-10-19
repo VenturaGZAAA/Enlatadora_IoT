@@ -28,14 +28,14 @@ void CanningMachine::begin() {
 }
 
 void CanningMachine::processMachineState(const JsonDocument &json) {
-    if (json["running"].as<bool>()) {
+    if (json["running"].is<bool>()) {
         machineRunning = json["running"];
     }
-    if (json["emergencyStop"].as<bool>()) {
+    if (json["emergencyStop"].is<bool>()) {
         emergencyStop = json["emergencyStop"];
     }
-    if (json["paused"].as<bool>()) {
-        machinePaused = json["paused"];
+    if (json["paused"].is<bool>()) {
+        machinePaused = json["paused"].as<bool>();
     }
     if (json["stage_name"].is<String>()) {
         stageName = json["stage_name"].as<String>();

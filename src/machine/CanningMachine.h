@@ -118,7 +118,7 @@ public:
 
     static String getStage();
     static bool isRunning() {return machineRunning;}
-    static bool isPaused() {return machinePaused;}
+    static bool isPaused() {return machinePaused || emergencyStop;}
 
     static String getSerializedState();
 
