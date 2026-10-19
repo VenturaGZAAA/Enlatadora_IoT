@@ -202,6 +202,9 @@ MachineMaster::Commands MachineMaster::commandFromString(const String &str) {
     if (std::find(startCom.begin(), startCom.end(), str) != startCom.end()) {
         return Commands::Start;
     }
+    if (std::find(resumeCom.begin(), resumeCom.end(), str) != resumeCom.end()) {
+        return Commands::Resume;
+    }
     return Commands::Unknown;
 }
 
@@ -228,6 +231,7 @@ void MachineMaster::processCommand(const Commands command) {
                 onResumeCommand();
             break;
         case Commands::Unknown:
+            SerialMonitor::enqueueLine("Unknown command received");
             break;
     }
 }
