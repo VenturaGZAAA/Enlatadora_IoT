@@ -20,18 +20,23 @@ void SerialMonitor::init(const uint64_t baudRate,const uint32_t _microsecondsDel
         queueMutex = xSemaphoreCreateMutex();
     }
     xTaskCreate(reinterpret_cast<TaskFunction_t>(loop), "SerialQueue", 8192, nullptr, 5, &task);
+    initialized = true;
 }
 
 [[noreturn]] void SerialMonitor::loop() {
     const TickType_t xFrequency = pdMS_TO_TICKS(period);
     TickType_t xLastWakeTime = xTaskGetTickCount();
     while (true) {
+        if (!initialized) {
+            continue;
+        }
         run();
         vTaskDelayUntil(&xLastWakeTime, xFrequency);
     }
 }
 
 void SerialMonitor::run() {
+
     // 1. Drain output queue safely under mutex protection
     if (queueMutex && xSemaphoreTake(queueMutex, pdMS_TO_TICKS(20)) == pdTRUE) {
         while (!serialQueue.empty()) {
@@ -72,6 +77,9 @@ void SerialMonitor::run() {
 
 void SerialMonitor::enqueue(const std::string &message) {
     if (!queueMutex) return;
+    if (!initialized) {
+        return;
+    }
     if (xSemaphoreTake(queueMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
         if (serialQueue.size() < 100) {
             // Limit queue to prevent unbounded RAM usage

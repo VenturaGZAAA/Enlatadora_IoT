@@ -22,6 +22,7 @@ class SerialMonitor {
     static inline String rxBuffer = "";
     static inline uint32_t period = 25;
 
+    static inline  bool initialized = false;
     [[noreturn]] static void loop();
     static void run();
 
