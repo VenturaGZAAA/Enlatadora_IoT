@@ -4,43 +4,80 @@
 
 #include "CanningMachine.h"
 #include <ArduinoJson.h>
+#include <map>
 
 #include "drivers/universal/SerialMonitor.h"
 #include "config/build_flags.h"
 
 #include <utility>
 
-void CanningMachine::setup(const bool autoUpdate) {
-    configurePins();
-    allOff();
+void CanningMachine::setup() {
+    controller = UARTManager::create(Serial1, 18, 17);
+    controller->registerJsonCallback(processMachineState);
     setUp = true;
-    if (autoUpdate) {
-        startAutoUpdate();
-    }
 }
 
-void CanningMachine::startAutoUpdate() {
-    if (autoUpdateTaskHandle == nullptr) {
-        xTaskCreatePinnedToCore(
-            reinterpret_cast<TaskFunction_t>(autoUpdateLoop),
-            "CanningMachineAutoUpdate",
-            1024,
-            nullptr,
-            1,
-            &autoUpdateTaskHandle,
-            0
-        );
-    }
-}
 
 void CanningMachine::begin() {
     if (!setUp) {
         SerialMonitor::enqueueLine("Canning machine has not been set up");
+        return;
+    }
+    controller->init();
+    startTask();
+}
+
+void CanningMachine::processMachineState(const JsonDocument &json) {
+    if (json["running"].as<bool>()) {
+        machineRunning = json["running"];
+    }
+    if (json["emergencyStop"].as<bool>()) {
+        emergencyStop = json["emergencyStop"];
+    }
+    if (json["paused"].as<bool>()) {
+        machinePaused = json["paused"];
+    }
+    if (json["stage_name"].is<String>()) {
+        stageName = json["stage_name"].as<String>();
+    }
+    if (json["stage_num"].is<int>()) {
+        stageIndex = json["stage_num"].as<int>();
     }
 
-    stage = Stage::Reposo;
-    sistemaAutorizado = false;
-    startTask();
+    if (json["inputs"].is<String>()) {
+        String inputs = json["inputs"];
+        JsonDocument inputsDoc;
+        if (const DeserializationError err = deserializeJson(inputsDoc, inputs)) {
+            SerialMonitor::enqueueLine("Error deserializing JSON inputs! -> " + String(err.c_str()));
+        } else {
+            deserializeInputs(inputsDoc);
+        }
+    }
+    if (json["outputs"].is<String>()) {
+        String outputs = json["outputs"];
+        JsonDocument outputsDoc;
+        if (const DeserializationError err = deserializeJson(outputsDoc, outputs)) {
+            SerialMonitor::enqueueLine("Error deserializing JSON outputs! -> " + String(err.c_str()));
+        } else {
+            deserializeOutputs(outputsDoc);
+        }
+    }
+}
+
+void CanningMachine::deserializeInputs(const JsonDocument &json) {
+    for (int i = 0; i < NUM_INPUTS; i++) {
+        if (json["I" + String(i)].is<bool>()) {
+            inputState[i] = json["I" + String(i)].as<bool>();
+        }
+    }
+}
+
+void CanningMachine::deserializeOutputs(const JsonDocument &json) {
+    for (int i = 0; i < NUM_OUTPUTS; i++) {
+        if (json["Q" + String(i)].is<bool>()) {
+            outputState[i] = json["Q" + String(i)].as<bool>();
+        }
+    }
 }
 
 void CanningMachine::startTask(const UBaseType_t priority,
@@ -57,93 +94,12 @@ void CanningMachine::startTask(const UBaseType_t priority,
     );
 }
 
-void CanningMachine::configurePins() {
-    for (int i = 0; i < NUM_INPUTS; ++i) {
-#ifndef INPUT_LOGIC_TEST
-        pinMode(IN_PINS[i], INPUT);
-        inputState[i] = (digitalRead(IN_PINS[i]) == HIGH);
-#else
-        inputState[i] = false;
-#endif
-    }
-#ifdef INPUT_LOGIC_TEST
-    inputState[4] = true;
-#endif
-
-    for (int i = 0; i < NUM_OUTPUTS; ++i) {
-#ifndef DISABLE_REAL_OUTPUT
-        pinMode(ACTUATOR_PINS[i], OUTPUT);
-#endif
-        outputState[i] = false;
-    }
-}
-
-void CanningMachine::writeOutput(const int index, const bool value) {
-    outputState[index] = value;
-#ifndef DISABLE_REAL_OUTPUT
-    digitalWrite(ACTUATOR_PINS[index], value ? HIGH : LOW);
-#endif
-}
-
-bool CanningMachine::readInput(const int index, const bool update) {
-#ifndef INPUT_LOGIC_TEST
-    if (update) {
-        inputState[index] = digitalRead(IN_PINS[index]) == HIGH;
-    }
-#endif
-    return inputState[index];
-}
-
-[[noreturn]] void CanningMachine::autoUpdateLoop() {
-
-    while (true) {
-        for (int i = 0; i < NUM_INPUTS; i++) {
-            readInput(i, true);
-        }
-        updateAuthorization();
-        vTaskDelay(pdMS_TO_TICKS(autoUpdatePeriod));
-    }
-}
-
-
-const char *CanningMachine::stageName(const Stage s) {
-    switch (s) {
-        case Stage::Reposo: return "Reposo";
-        case Stage::EsperaLata: return "EsperaLata";
-        case Stage::TopeActivo: return "TopeActivo";
-        case Stage::FrenadoYBajarTope: return "FrenadoYBajarTope";
-        case Stage::SubirPlataformaTolva: return "SubirPlataformaTolva";
-        case Stage::Llenado: return "Llenado";
-        case Stage::BajarPlataformaTolva: return "BajarPlataformaTolva";
-        case Stage::TrasladoAPlataformaSalida: return "TrasladoAPlataformaSalida";
-        case Stage::MantenerCadena2s: return "MantenerCadena2s";
-        case Stage::CadenaSalida10s: return "CadenaSalida10s";
-        case Stage::ExtenderPiston: return "ExtenderPiston";
-        case Stage::BajarVentosaYTapas: return "BajarVentosaYTapas";
-        case Stage::RetraerPiston: return "RetraerPiston";
-        case Stage::SoltarTapa: return "SoltarTapa";
-        case Stage::RetraerVentosaYBajarPlataforma: return "RetraerVentosaYBajarPlataforma";
-        case Stage::BandaTransportadora3: return "BandaTransportadora3";
-        case Stage::DesactivarBanda3: return "DesactivarBanda3";
-        case Stage::AsegurarPaletYSoltarTope: return "AsegurarPaletYSoltarTope";
-        case Stage::LevantarLata: return "LevantarLata";
-        case Stage::VerificacionEstadoLata: return "VerificacionEstadoLata";
-        case Stage::Sellar: return "Sellar";
-        case Stage::ApagarMotorSellado: return "ApagarMotorSellado";
-        case Stage::BajarLata: return "BajarLata";
-        case Stage::DesasegurarPalet: return "DesasegurarPalet";
-        case Stage::ActivarBanda3: return "ActivarBanda3";
-        case Stage::ApagarBanda3YRepetir: return "ApagarBanda3YRepetir";
-    }
-    return "Desconocido";
-}
-
 String CanningMachine::getStage() {
     String result;
     result.reserve(40);
-    result += static_cast<int>(stage);
+    result += String(stageIndex);
     result += "-";
-    result += stageName(stage);
+    result += stageName;
     return result;
 }
 
@@ -185,9 +141,14 @@ String CanningMachine::getJsonInputs() {
 
 void CanningMachine::outputsWriteJsonCallback(const JsonDocument &doc) {
     bool authorized = false;
+    std::map<uint8_t, bool> outputsMap;
     for (int i = 0; i < NUM_OUTPUTS; ++i) {
         if (doc["Q" + String(i)].is<bool>()) {
             if (!authorized) {
+                if (emergencyStop) {
+                    SerialMonitor::enqueueLine("Emergency stop is active");
+                    return;
+                }
                 if (!allowOutputOverride) {
                     SerialMonitor::enqueueLine("Output override not enabled");
                     return;
@@ -199,28 +160,20 @@ void CanningMachine::outputsWriteJsonCallback(const JsonDocument &doc) {
                 }
                 authorized = true;
             }
-            writeOutput(i, doc["Q" + String(i)]);
+            outputsMap[i] = doc["Q" + String(i)].as<bool>();
         }
+    }
+    if (!outputsMap.empty()) {
+        JsonDocument json;
+        for (const auto &[key, value]: outputsMap) {
+            json["Q" + String(key)] = value;
+        }
+        String msg;
+        serializeJson(json, msg);
+        controller->enqueueLine(msg);
     }
 }
 
-void CanningMachine::inputsWriteJsonCallback(const JsonDocument &doc) {
-#ifdef INPUT_LOGIC_TEST
-    for (int i = 0; i < NUM_INPUTS; ++i) {
-        if (doc["I" + String(i)].is<bool>()) {
-            inputState[i] = doc["I" + String(i)];
-        }
-    }
-#else
-    SerialMonitor::enqueueLine("Input override not authorized");
-#endif
-}
-
-void CanningMachine::allOff() {
-    for (int i = 0; i < NUM_OUTPUTS; ++i) {
-        writeOutput(i, false);
-    }
-}
 
 void CanningMachine::processCommands(const char *command) {
     if (taskHandle == nullptr) return;
@@ -255,19 +208,26 @@ CanningMachine::Commands CanningMachine::commandFromString(const String &str) {
 void CanningMachine::processCommand(const Commands command) {
     switch (command) {
         case Commands::Stop:
-            allOff();
+            controller->enqueueLine("Stop");
             if (onStopCommand)
                 onStopCommand();
             break;
         case Commands::Pause:
+            controller->enqueueLine("Pause");
             if (onPauseCommand)
                 onPauseCommand();
             break;
         case Commands::Start:
+            controller->enqueueLine("Start");
             if (onStartCommand)
                 onStartCommand();
             break;
-        default:
+        case Commands::Resume:
+            controller->enqueueLine("Resume");
+            if (onResumeCommand)
+                onResumeCommand();
+            break;
+        case Commands::Unknown:
             break;
     }
 }
@@ -284,240 +244,13 @@ void CanningMachine::setOnPauseCallback(std::function<void()> callback) {
     onPauseCommand = std::move(callback);
 }
 
-void CanningMachine::updateAuthorization() {
-    if (!readInput(4)) sistemaAutorizado = true;
-    if (readInput(5)) sistemaAutorizado = false;
+void CanningMachine::setOnResumeCallback(std::function<void()> callback) {
+    onResumeCommand = std::move(callback);
 }
 
-
 [[noreturn]] void CanningMachine::run() {
-
     for (;;) {
-        // updateAuthorization();
-
-        continue;
-
-        switch (stage) {
-            case Stage::Reposo:
-                if (!allowOutputOverride) {
-                    allOff();
-                }
-                if (sistemaAutorizado) {
-                    stage = Stage::EsperaLata;
-                } else {
-                    delay(1);
-                }
-                break;
-
-            case Stage::EsperaLata:
-                writeOutput(16, true);
-
-                while (readInput(3) && sistemaAutorizado) {
-                    delay(1);
-                    updateAuthorization();
-                }
-
-                // Original priority: sensor first, then authorization.
-                if (!readInput(3)) {
-                    stage = Stage::TopeActivo;
-                } else if (!sistemaAutorizado) {
-                    stage = Stage::Reposo;
-                }
-                break;
-
-            case Stage::TopeActivo:
-                writeOutput(18, true);
-                delay(2000);
-                stage = Stage::FrenadoYBajarTope;
-                break;
-
-            case Stage::FrenadoYBajarTope:
-                writeOutput(16, false);
-                writeOutput(18, false);
-                stage = Stage::SubirPlataformaTolva;
-                break;
-
-            case Stage::SubirPlataformaTolva:
-                writeOutput(17, true);
-                delay(1000);
-                stage = Stage::Llenado;
-                break;
-
-            case Stage::Llenado:
-                writeOutput(1, true);
-                delay(1000);
-                writeOutput(1, false);
-                stage = Stage::BajarPlataformaTolva;
-                break;
-
-            case Stage::BajarPlataformaTolva:
-                writeOutput(17, false);
-                stage = Stage::TrasladoAPlataformaSalida;
-                break;
-
-            case Stage::TrasladoAPlataformaSalida:
-                writeOutput(16, true);
-
-                while (readInput(2)) {
-                    delay(1);
-                }
-
-                stage = Stage::MantenerCadena2s;
-                break;
-
-            case Stage::MantenerCadena2s:
-                delay(2000);
-                writeOutput(16, false);
-                writeOutput(0, true);
-                stage = Stage::CadenaSalida10s;
-                break;
-
-            case Stage::CadenaSalida10s:
-                writeOutput(11, true);
-                writeOutput(15, true);
-                writeOutput(12, true);
-                writeOutput(2, true);
-
-                delay(10000);
-
-                writeOutput(11, false);
-                writeOutput(15, false);
-                writeOutput(12, false);
-                writeOutput(0, false);
-
-                stage = Stage::ExtenderPiston;
-                break;
-
-            case Stage::ExtenderPiston:
-                writeOutput(4, true);
-                delay(2000);
-                stage = Stage::BajarVentosaYTapas;
-                break;
-
-            case Stage::BajarVentosaYTapas:
-                writeOutput(5, true);
-                writeOutput(6, true);
-                writeOutput(3, true);
-
-                // Original: waits 1000 ms OR until IN_PINS[7] goes LOW.
-                // Poll at 1 ms to preserve the sensor override.
-                for (int i = 0; i < 1000; ++i) {
-                    if (!readInput(7)) {
-                        writeOutput(4, false);
-                        writeOutput(3, false);
-                        writeOutput(6, false);
-                        writeOutput(5, false);
-                        writeOutput(2, false);
-
-                        stage = Stage::ActivarBanda3;
-                        break;
-                    }
-                    delay(1);
-                }
-
-                if (stage == Stage::BajarVentosaYTapas) {
-                    stage = Stage::RetraerPiston;
-                }
-                break;
-
-            case Stage::RetraerPiston:
-                writeOutput(4, false);
-                writeOutput(3, false);
-                delay(2000);
-                stage = Stage::SoltarTapa;
-                break;
-
-            case Stage::SoltarTapa:
-                writeOutput(6, false);
-                delay(500);
-                stage = Stage::RetraerVentosaYBajarPlataforma;
-                break;
-
-            case Stage::RetraerVentosaYBajarPlataforma:
-                writeOutput(5, false);
-                writeOutput(2, false);
-                delay(500);
-                stage = Stage::BandaTransportadora3;
-                break;
-
-            case Stage::BandaTransportadora3:
-                writeOutput(14, true);
-                writeOutput(7, true);
-                delay(5000);
-                stage = Stage::DesactivarBanda3;
-                break;
-
-            case Stage::DesactivarBanda3:
-                writeOutput(14, false);
-                delay(1000);
-                stage = Stage::AsegurarPaletYSoltarTope;
-                break;
-
-            case Stage::AsegurarPaletYSoltarTope:
-                writeOutput(8, true);
-                writeOutput(7, false);
-                delay(1000);
-                stage = Stage::LevantarLata;
-                break;
-
-            case Stage::LevantarLata:
-                writeOutput(9, true);
-                delay(500);
-                stage = Stage::VerificacionEstadoLata;
-                break;
-
-            case Stage::VerificacionEstadoLata:
-                if (readInput(0)) {
-                    stage = Stage::BajarLata;
-                } else {
-                    stage = Stage::Sellar;
-                }
-                break;
-
-            case Stage::Sellar:
-                writeOutput(13, true);
-                delay(1000);
-                stage = Stage::ApagarMotorSellado;
-                break;
-
-            case Stage::ApagarMotorSellado:
-                writeOutput(13, false);
-                delay(500);
-                stage = Stage::BajarLata;
-                break;
-
-            case Stage::BajarLata:
-                writeOutput(9, false);
-                delay(500);
-                stage = Stage::DesasegurarPalet;
-                break;
-
-            case Stage::DesasegurarPalet:
-                writeOutput(8, false);
-                delay(500);
-                stage = Stage::ActivarBanda3;
-                break;
-
-            case Stage::ActivarBanda3:
-                writeOutput(14, true);
-
-                while (readInput(1)) {
-                    delay(1);
-                }
-
-                stage = Stage::ApagarBanda3YRepetir;
-                break;
-
-            case Stage::ApagarBanda3YRepetir:
-                writeOutput(14, false);
-
-                if (sistemaAutorizado) {
-                    stage = Stage::EsperaLata;
-                } else {
-                    stage = Stage::Reposo;
-                }
-                break;
-        }
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
 
@@ -526,17 +259,5 @@ void CanningMachine::stop() {
         SerialMonitor::enqueueLine("Stopping canning machine");
         vTaskDelete(taskHandle);
         taskHandle = nullptr;
-        allOff();
-        machineRunning = false;
-        sistemaAutorizado = false;
-        stage = Stage::Reposo;
-    }
-    stopAutoUpdate();
-}
-
-void CanningMachine::stopAutoUpdate() {
-    if (autoUpdateTaskHandle != nullptr) {
-        vTaskDelete(autoUpdateTaskHandle);
-        autoUpdateTaskHandle = nullptr;
     }
 }

@@ -11,6 +11,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <ArduinoJson.h>
+#include <drivers/universal/UARTManager.h>
 
 
 class CanningMachine {
@@ -47,63 +48,49 @@ class CanningMachine {
         Stop = 0,
         Start,
         Pause,
+        Resume,
         Unknown
     };
 
     static Commands commandFromString(const String &str);
 
-    static const char *stageName(Stage s);
+    static inline auto controller = UARTManager::reserve();
 
     static constexpr int NUM_INPUTS = 8;
     static constexpr int NUM_OUTPUTS = 19;
 
-    static constexpr int IN_PINS[NUM_INPUTS] = {
-        40, 39, 38, 37, 36, 35, 0, 45
-    };
-
-    static constexpr int ACTUATOR_PINS[NUM_OUTPUTS] = {
-        18, 17, 16, 15, 7, 6, 5, 4, 13, 12,
-        11, 10, 9, 46, 3, 8, 41, 42, 2
-    };
-
 
     static inline bool inputState[NUM_INPUTS] = {};
     static inline bool outputState[NUM_OUTPUTS] = {};
-    static inline bool setUp = false;
+    static inline String stageName = "";
+    static inline uint8_t stageIndex = 0;
 
-    static inline auto stage = Stage::Reposo;
-    static inline bool sistemaAutorizado = false;
+    static inline bool setUp = false;
 
     static inline bool machineRunning = false;
     static inline bool machinePaused = false;
+    static inline bool emergencyStop = false;
 
     static inline bool allowOutputOverride = true;
     static inline TaskHandle_t taskHandle = nullptr;
 
     [[noreturn]] static void run();
 
-    static void configurePins();
-
-    static void updateAuthorization();
 
     static void startTask(UBaseType_t priority = 1,
                           uint32_t stackSize = 4096,
                           BaseType_t core = 1);
 
-    static void writeOutput(int index, bool value);
-
-
-    static bool readInput(int index, bool update = false);
-    static inline uint8_t autoUpdatePeriod = 10;
-    static inline TaskHandle_t autoUpdateTaskHandle = nullptr;
-    [[noreturn]] static void autoUpdateLoop();
+    static void processMachineState(const JsonDocument &json);
+    static void deserializeInputs(const JsonDocument &json);
+    static void deserializeOutputs(const JsonDocument &json);
 
     static void processCommand(Commands command);
     
     static inline std::function<void()> onStopCommand = nullptr;
     static inline std::function<void()> onStartCommand = nullptr;
     static inline std::function<void()> onPauseCommand = nullptr;
-
+    static inline std::function<void()> onResumeCommand = nullptr;
 
 public:
     CanningMachine() = delete;
@@ -111,20 +98,19 @@ public:
     static const inline std::vector<String> stopCom = { "stop" ,"disable","detener","desactivar"};
     static const inline std::vector<String> startCom = { "start" ,"enable","inicia","arranca"};
     static const inline std::vector<String> pauseCom = { "pause" ,"emergency","emergencia","pausa"};
-
+    static const inline std::vector<String> resumeCom = { "resume" ,"continue","continua","reanuda"};
     static const inline std::vector<String> allCom = [] {
         std::vector v(stopCom);
         v.insert(v.end(), startCom.begin(), startCom.end());
         v.insert(v.end(), pauseCom.begin(), pauseCom.end());
+        v.insert(v.end(), resumeCom.begin(), resumeCom.end());
         return v;
     }();
 
 
-    static void setup(bool autoUpdate = false);
+    static void setup();
 
     static void begin();
-    static void startAutoUpdate();
-    static void stopAutoUpdate();
 
     static String getJsonOutputs();
 
@@ -136,8 +122,6 @@ public:
 
     static String getSerializedState();
 
-    static void inputsWriteJsonCallback(const JsonDocument &doc);
-
     static void outputsWriteJsonCallback(const JsonDocument &doc);
 
     static void processCommands(const char *command);
@@ -145,8 +129,7 @@ public:
     static void setOnStopCallback(std::function<void()> callback);
     static void setOnStartCallback(std::function<void()> callback);
     static void setOnPauseCallback(std::function<void()> callback);
-
-    static void allOff();
+    static void setOnResumeCallback(std::function<void()> callback);
 
     static void stop();
 };

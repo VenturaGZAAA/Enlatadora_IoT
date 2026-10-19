@@ -34,7 +34,6 @@
  *  on audio/http transaction: ~220 mA
  */
 
-static auto testUart = UARTManager::reserve();
 
 void setup() {
     // --- 1. Core Hardware & Storage Initialization ---
@@ -71,7 +70,6 @@ void setup() {
     // --- 2. Serial Interface Callbacks ---
     // Register handlers for incoming JSON payloads and commands received over Serial.
     SerialMonitor::registerJsonCallback(WifiManager::wifiConfigJsonCallback);
-    SerialMonitor::registerJsonCallback(CanningMachine::inputsWriteJsonCallback);
     SerialMonitor::registerJsonCallback(CanningMachine::outputsWriteJsonCallback);
     SerialMonitor::registerCallback(CanningMachine::processCommands);
     SerialMonitor::registerCallback(VoiceKeywordModule::processCommands);
@@ -109,7 +107,7 @@ void setup() {
     MqttManager::registerCallback("admin/reset/request", [](const char *p) {
         if (String(p) == "1") {
             EvenTheRGBLedHasManagers::setColor(RGBColor::Yellow(), 500);
-            CanningMachine::allOff();
+
             ESP.restart();
         }
     });
@@ -128,19 +126,7 @@ void setup() {
         CanningMachine::outputsWriteJsonCallback(doc);
     });
 
-#ifdef INPUT_LOGIC_TEST
-    // MQTT Subscription: Input simulation for automated testing and validation.
-    MqttManager::registerCallback("machine/IO/inputs/write", [](const char *payload) {
-        JsonDocument doc;
-        const DeserializationError error = deserializeJson(doc, payload);
-        if (error) {
-            SerialMonitor::enqueue("Error deserializing inputs write over MQTT: ");
-            SerialMonitor::enqueueLine(error.c_str());
-            return;
-        }
-        CanningMachine::inputsWriteJsonCallback(doc);
-    });
-#endif
+
     // MQTT Subscription: High-level operational commands (Start, Stop, Pause, etc.).
     MqttManager::registerCallback("machine/command", CanningMachine::processCommands);
 
@@ -215,39 +201,11 @@ void setup() {
     // Launch asynchronous state machine tasks for canning operations.
     CanningMachine::begin();
 
-    testUart = UARTManager::create(Serial1, 18, 17);
 
-    testUart->registerJsonCallback([](const JsonDocument &json) {
-        SerialMonitor::enqueueLine("We received a JSON!");
-        if (json["inputs"].is<String>()) {
-            String inputs = json["inputs"];
-            JsonDocument inputsDoc;
-            const DeserializationError err = deserializeJson(inputsDoc, inputs);
-            if (err) {
-                SerialMonitor::enqueueLine("Error deserializing JSON inputs!");
-            } else {
-                SerialMonitor::enqueueLine("JSON inputs deserialized successfully!");
-                if (inputsDoc["I4"].is<bool>()) {
-                    SerialMonitor::enqueueLine("I4 is a boolean!, and it's " + String(inputsDoc["I4"]));
-                }
-            }
-        }
-    });
-
-    SerialMonitor::registerCallback([](const char *cmd) {
-        testUart->enqueueLine(cmd);
-    });
-    testUart->registerCallback([](const char *cmd) {
-        if (String(cmd).length() < 30) {
-            SerialMonitor::enqueueLine("The key is: " + String(cmd));
-        }
-    });
-    testUart->init();
 }
 
 void loop() {
     // Primary application workflows run in asynchronous FreeRTOS tasks and callbacks.
     // Yield CPU time here to maximize efficiency and prevent watchdog resets.
     vTaskDelay(pdMS_TO_TICKS(1000));
-    testUart->enqueueLine("It is I, the maaaaster");
 }
