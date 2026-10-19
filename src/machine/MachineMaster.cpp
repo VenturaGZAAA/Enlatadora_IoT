@@ -44,27 +44,32 @@ void MachineMaster::processMachineState(const JsonDocument &json) {
         stageIndex = json["stage_num"].as<int>();
     }
 
-    if (json["inputs"].is<String>()) {
+    if (json["inputs"].is<JsonObjectConst>()) {
+        deserializeInputs(json["inputs"].as<JsonObjectConst>());
+    } else if (json["inputs"].is<String>()) {
         String inputs = json["inputs"];
         JsonDocument inputsDoc;
         if (const DeserializationError err = deserializeJson(inputsDoc, inputs)) {
             SerialMonitor::enqueueLine("Error deserializing JSON inputs! -> " + String(err.c_str()));
         } else {
-            deserializeInputs(inputsDoc);
+            deserializeInputs(inputsDoc.as<JsonObjectConst>());
         }
     }
-    if (json["outputs"].is<String>()) {
+
+    if (json["outputs"].is<JsonObjectConst>()) {
+        deserializeOutputs(json["outputs"].as<JsonObjectConst>());
+    } else if (json["outputs"].is<String>()) {
         String outputs = json["outputs"];
         JsonDocument outputsDoc;
         if (const DeserializationError err = deserializeJson(outputsDoc, outputs)) {
             SerialMonitor::enqueueLine("Error deserializing JSON outputs! -> " + String(err.c_str()));
         } else {
-            deserializeOutputs(outputsDoc);
+            deserializeOutputs(outputsDoc.as<JsonObjectConst>());
         }
     }
 }
 
-void MachineMaster::deserializeInputs(const JsonDocument &json) {
+void MachineMaster::deserializeInputs(const JsonObjectConst json) {
     for (int i = 0; i < NUM_INPUTS; i++) {
         if (json["I" + String(i)].is<bool>()) {
             inputState[i] = json["I" + String(i)].as<bool>();
@@ -72,7 +77,7 @@ void MachineMaster::deserializeInputs(const JsonDocument &json) {
     }
 }
 
-void MachineMaster::deserializeOutputs(const JsonDocument &json) {
+void MachineMaster::deserializeOutputs(const JsonObjectConst json) {
     for (int i = 0; i < NUM_OUTPUTS; i++) {
         if (json["Q" + String(i)].is<bool>()) {
             outputState[i] = json["Q" + String(i)].as<bool>();

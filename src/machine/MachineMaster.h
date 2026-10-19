@@ -82,8 +82,8 @@ class MachineMaster {
                           BaseType_t core = 1);
 
     static void processMachineState(const JsonDocument &json);
-    static void deserializeInputs(const JsonDocument &json);
-    static void deserializeOutputs(const JsonDocument &json);
+    static void deserializeInputs(JsonObjectConst json);
+    static void deserializeOutputs(JsonObjectConst json);
 
     static void processCommand(Commands command);
     
