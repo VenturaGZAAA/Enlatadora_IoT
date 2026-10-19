@@ -18,6 +18,7 @@
 #include "drivers/s3/EvenTheRGBLedHasManagers.h"
 #include "drivers/specific/SdCardManager.h"
 #include "drivers/universal/SerialMonitor.h"
+#include "drivers/universal/UARTManager.h"
 #include "drivers/universal/WifiManager.h"
 #include "machine/CanningMachine.h"
 #include "network/MqttManager.h"
@@ -32,6 +33,8 @@
  *  while audio capture: ~130 mA to ~150 mA
  *  on audio/http transaction: ~220 mA
  */
+
+static auto testUart = UARTManager::reserve();
 
 void setup() {
     // --- 1. Core Hardware & Storage Initialization ---
@@ -75,7 +78,7 @@ void setup() {
 
     // --- 3. Network Connection (Wi-Fi) ---
     // Connect to configured Wi-Fi network; restart system if configuration/connection fails.
-    if (!WifiManager::setup("Enlatadora-s3","12345678")) {
+    if (!WifiManager::setup("Enlatadora-s3", "12345678")) {
         Serial.println("Failed to setup WiFi");
         delay(1000);
         ESP.restart();
@@ -167,11 +170,10 @@ void setup() {
     VoiceKeywordModule::registerKeyword(CanningMachine::allCom, [](const String &cmd) {
         CanningMachine::processCommands(cmd.c_str());
         MqttManager::publish("voice/keyword/match", cmd);
-    },true);
+    }, true);
 
 
     EvenTheRGBLedHasManagers::setColorGenerator([] {
-
         if (VoiceKeywordModule::isListening()) {
             return RGBColor::Blue().withAlpha(0.5f);
         }
@@ -196,13 +198,13 @@ void setup() {
     CanningMachine::setup();
 
     CanningMachine::setOnStopCallback([] {
-        EvenTheRGBLedHasManagers::setColor(RGBColor::Red(),1000);
+        EvenTheRGBLedHasManagers::setColor(RGBColor::Red(), 1000);
     });
     CanningMachine::setOnStartCallback([] {
-        EvenTheRGBLedHasManagers::setColor(RGBColor::Green(),1000);
+        EvenTheRGBLedHasManagers::setColor(RGBColor::Green(), 1000);
     });
     CanningMachine::setOnPauseCallback([] {
-        EvenTheRGBLedHasManagers::setColor(RGBColor::Magenta(),1000);
+        EvenTheRGBLedHasManagers::setColor(RGBColor::Magenta(), 1000);
     });
 
     delay(100);
@@ -212,10 +214,40 @@ void setup() {
 
     // Launch asynchronous state machine tasks for canning operations.
     CanningMachine::begin();
+
+    testUart = UARTManager::create(Serial1, 18, 17);
+
+    testUart->registerJsonCallback([](const JsonDocument &json) {
+        SerialMonitor::enqueueLine("We received a JSON!");
+        if (json["inputs"].is<String>()) {
+            String inputs = json["inputs"];
+            JsonDocument inputsDoc;
+            const DeserializationError err = deserializeJson(inputsDoc, inputs);
+            if (err) {
+                SerialMonitor::enqueueLine("Error deserializing JSON inputs!");
+            } else {
+                SerialMonitor::enqueueLine("JSON inputs deserialized successfully!");
+                if (inputsDoc["I4"].is<bool>()) {
+                    SerialMonitor::enqueueLine("I4 is a boolean!, and it's " + String(inputsDoc["I4"]));
+                }
+            }
+        }
+    });
+
+    SerialMonitor::registerCallback([](const char *cmd) {
+        testUart->enqueueLine(cmd);
+    });
+    testUart->registerCallback([](const char *cmd) {
+        if (String(cmd).length() < 30) {
+            SerialMonitor::enqueueLine("The key is: " + String(cmd));
+        }
+    });
+    testUart->init();
 }
 
 void loop() {
     // Primary application workflows run in asynchronous FreeRTOS tasks and callbacks.
     // Yield CPU time here to maximize efficiency and prevent watchdog resets.
     vTaskDelay(pdMS_TO_TICKS(1000));
+    testUart->enqueueLine("It is I, the maaaaster");
 }
