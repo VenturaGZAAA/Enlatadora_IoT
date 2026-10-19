@@ -6,8 +6,8 @@
 
 
 UARTManager::UARTManager(HardwareSerial &uartPort, const int8_t rxPin, const int8_t txPin,
-                         const uint32_t baudRate, const uint32_t period)
-    : uartPort(uartPort), rxPin(rxPin), txPin(txPin), baudRate(baudRate), period(period) {
+                         const uint32_t baudRate, const uint32_t period, const uint32_t bufferLength)
+    : uartPort(uartPort), rxPin(rxPin), txPin(txPin), baudRate(baudRate), period(period), bufferLength(bufferLength) {
 }
 
 void UARTManager::init() {
@@ -45,7 +45,6 @@ void UARTManager::run() {
         xSemaphoreGive(queueMutex);
     }
 
-
     while (uartPort.available() > 0) {
         if (const char c = static_cast<char>(uartPort.read()); c == '\r' || c == '\n') {
             rxBuffer.trim();
@@ -63,7 +62,7 @@ void UARTManager::run() {
                 }
             }
         } else {
-            if (rxBuffer.length() < 512) {
+            if (rxBuffer.length() < bufferLength) {
                 rxBuffer += c;
             }
         }

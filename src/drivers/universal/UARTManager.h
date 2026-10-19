@@ -22,6 +22,7 @@ class UARTManager {
     int8_t txPin;
     uint32_t baudRate;
     uint32_t period;
+    uint32_t bufferLength;
     std::queue<std::string> serialQueue;
     std::vector<std::function<void(const char *)> > serialCallbacks;
     std::vector<std::function<void(JsonDocument)> > serialJsonCallbacks;
@@ -36,15 +37,15 @@ class UARTManager {
     void run();
 
     UARTManager(HardwareSerial &uartPort, int8_t rxPin, int8_t txPin, uint32_t baudRate,
-               uint32_t period);
+               uint32_t period, uint32_t bufferLength);
 
 
 public:
     static std::unique_ptr<UARTManager> reserve() { return {}; }
 
     static std::unique_ptr<UARTManager> create(HardwareSerial &uartPort, const int8_t rxPin, const int8_t txPin, const uint32_t baudRate = 115200,
-               const uint32_t period = 25) {
-        return std::unique_ptr<UARTManager>(new UARTManager(uartPort, rxPin, txPin, baudRate, period));
+               const uint32_t period = 25,const uint32_t bufferLength = 1024) {
+        return std::unique_ptr<UARTManager>(new UARTManager(uartPort, rxPin, txPin, baudRate, period, bufferLength));
     }
 
     void init();
