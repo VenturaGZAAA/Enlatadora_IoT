@@ -2,7 +2,7 @@
 // Created by urzu-7 on 10/6/26.
 //
 
-#include "CanningMachine.h"
+#include "MachineMaster.h"
 #include <ArduinoJson.h>
 #include <map>
 
@@ -11,14 +11,14 @@
 
 #include <utility>
 
-void CanningMachine::setup() {
+void MachineMaster::setup() {
     controller = UARTManager::create(Serial1, 18, 17);
     controller->registerJsonCallback(processMachineState);
     setUp = true;
 }
 
 
-void CanningMachine::begin() {
+void MachineMaster::begin() {
     if (!setUp) {
         SerialMonitor::enqueueLine("Canning machine has not been set up");
         return;
@@ -27,7 +27,7 @@ void CanningMachine::begin() {
     startTask();
 }
 
-void CanningMachine::processMachineState(const JsonDocument &json) {
+void MachineMaster::processMachineState(const JsonDocument &json) {
     if (json["running"].is<bool>()) {
         machineRunning = json["running"];
     }
@@ -64,7 +64,7 @@ void CanningMachine::processMachineState(const JsonDocument &json) {
     }
 }
 
-void CanningMachine::deserializeInputs(const JsonDocument &json) {
+void MachineMaster::deserializeInputs(const JsonDocument &json) {
     for (int i = 0; i < NUM_INPUTS; i++) {
         if (json["I" + String(i)].is<bool>()) {
             inputState[i] = json["I" + String(i)].as<bool>();
@@ -72,7 +72,7 @@ void CanningMachine::deserializeInputs(const JsonDocument &json) {
     }
 }
 
-void CanningMachine::deserializeOutputs(const JsonDocument &json) {
+void MachineMaster::deserializeOutputs(const JsonDocument &json) {
     for (int i = 0; i < NUM_OUTPUTS; i++) {
         if (json["Q" + String(i)].is<bool>()) {
             outputState[i] = json["Q" + String(i)].as<bool>();
@@ -80,7 +80,7 @@ void CanningMachine::deserializeOutputs(const JsonDocument &json) {
     }
 }
 
-void CanningMachine::startTask(const UBaseType_t priority,
+void MachineMaster::startTask(const UBaseType_t priority,
                                const uint32_t stackSize,
                                const BaseType_t core) {
     xTaskCreatePinnedToCore(
@@ -94,7 +94,7 @@ void CanningMachine::startTask(const UBaseType_t priority,
     );
 }
 
-String CanningMachine::getStage() {
+String MachineMaster::getStage() {
     String result;
     result.reserve(40);
     result += String(stageIndex);
@@ -103,7 +103,7 @@ String CanningMachine::getStage() {
     return result;
 }
 
-String CanningMachine::getSerializedState() {
+String MachineMaster::getSerializedState() {
     JsonDocument jsonDoc;
     jsonDoc["running"] = machineRunning;
     jsonDoc["paused"] = machinePaused;
@@ -114,7 +114,7 @@ String CanningMachine::getSerializedState() {
     return jsonOutput;
 }
 
-String CanningMachine::getJsonOutputs() {
+String MachineMaster::getJsonOutputs() {
     JsonDocument jsonDoc;
 
     for (int i = 0; i < NUM_OUTPUTS; ++i) {
@@ -127,7 +127,7 @@ String CanningMachine::getJsonOutputs() {
 }
 
 
-String CanningMachine::getJsonInputs() {
+String MachineMaster::getJsonInputs() {
     JsonDocument jsonDoc;
 
     for (int i = 0; i < NUM_INPUTS; ++i) {
@@ -139,7 +139,7 @@ String CanningMachine::getJsonInputs() {
     return jsonOutput;
 }
 
-void CanningMachine::outputsWriteJsonCallback(const JsonDocument &doc) {
+void MachineMaster::outputsWriteJsonCallback(const JsonDocument &doc) {
     bool authorized = false;
     std::map<uint8_t, bool> outputsMap;
     for (int i = 0; i < NUM_OUTPUTS; ++i) {
@@ -175,7 +175,7 @@ void CanningMachine::outputsWriteJsonCallback(const JsonDocument &doc) {
 }
 
 
-void CanningMachine::processCommands(const char *command) {
+void MachineMaster::processCommands(const char *command) {
     if (taskHandle == nullptr) return;
 
     const auto cmd = String(command);
@@ -192,7 +192,7 @@ void CanningMachine::processCommands(const char *command) {
     }
 }
 
-CanningMachine::Commands CanningMachine::commandFromString(const String &str) {
+MachineMaster::Commands MachineMaster::commandFromString(const String &str) {
     if (std::find(stopCom.begin(), stopCom.end(), str) != stopCom.end()) {
         return Commands::Stop;
     }
@@ -205,7 +205,7 @@ CanningMachine::Commands CanningMachine::commandFromString(const String &str) {
     return Commands::Unknown;
 }
 
-void CanningMachine::processCommand(const Commands command) {
+void MachineMaster::processCommand(const Commands command) {
     switch (command) {
         case Commands::Stop:
             controller->enqueueLine("Stop");
@@ -232,29 +232,29 @@ void CanningMachine::processCommand(const Commands command) {
     }
 }
 
-void CanningMachine::setOnStopCallback(std::function<void()> callback) {
+void MachineMaster::setOnStopCallback(std::function<void()> callback) {
     onStopCommand = std::move(callback);
 }
 
-void CanningMachine::setOnStartCallback(std::function<void()> callback) {
+void MachineMaster::setOnStartCallback(std::function<void()> callback) {
     onStartCommand = std::move(callback);
 }
 
-void CanningMachine::setOnPauseCallback(std::function<void()> callback) {
+void MachineMaster::setOnPauseCallback(std::function<void()> callback) {
     onPauseCommand = std::move(callback);
 }
 
-void CanningMachine::setOnResumeCallback(std::function<void()> callback) {
+void MachineMaster::setOnResumeCallback(std::function<void()> callback) {
     onResumeCommand = std::move(callback);
 }
 
-[[noreturn]] void CanningMachine::run() {
+[[noreturn]] void MachineMaster::run() {
     for (;;) {
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
 
-void CanningMachine::stop() {
+void MachineMaster::stop() {
     if (taskHandle != nullptr) {
         SerialMonitor::enqueueLine("Stopping canning machine");
         vTaskDelete(taskHandle);

@@ -20,7 +20,7 @@
 #include "drivers/universal/SerialMonitor.h"
 #include "drivers/universal/UARTManager.h"
 #include "drivers/universal/WifiManager.h"
-#include "machine/CanningMachine.h"
+#include "machine/MachineMaster.h"
 #include "network/MqttManager.h"
 #include "network/WebSeverManager.h"
 
@@ -70,8 +70,8 @@ void setup() {
     // --- 2. Serial Interface Callbacks ---
     // Register handlers for incoming JSON payloads and commands received over Serial.
     SerialMonitor::registerJsonCallback(WifiManager::wifiConfigJsonCallback);
-    SerialMonitor::registerJsonCallback(CanningMachine::outputsWriteJsonCallback);
-    SerialMonitor::registerCallback(CanningMachine::processCommands);
+    SerialMonitor::registerJsonCallback(MachineMaster::outputsWriteJsonCallback);
+    SerialMonitor::registerCallback(MachineMaster::processCommands);
     SerialMonitor::registerCallback(VoiceKeywordModule::processCommands);
 
     // --- 3. Network Connection (Wi-Fi) ---
@@ -123,21 +123,21 @@ void setup() {
             SerialMonitor::enqueueLine(error.c_str());
             return;
         }
-        CanningMachine::outputsWriteJsonCallback(doc);
+        MachineMaster::outputsWriteJsonCallback(doc);
     });
 
 
     // MQTT Subscription: High-level operational commands (Start, Stop, Pause, etc.).
-    MqttManager::registerCallback("machine/command", CanningMachine::processCommands);
+    MqttManager::registerCallback("machine/command", MachineMaster::processCommands);
 
     // --- 5. Periodic Telemetry Publishing ---
     // Publish Wi-Fi status every 5 seconds.
     MqttManager::registerPeriodicPublish("config/wifi/state", 3000, WifiManager::getSerializedState);
     // Publish overall canning machine state every 1 second.
-    MqttManager::registerPeriodicPublish("machine/state/read", 1000, CanningMachine::getSerializedState);
+    MqttManager::registerPeriodicPublish("machine/state/read", 1000, MachineMaster::getSerializedState);
     // Stream real-time output and input pin states every 200 ms.
-    MqttManager::registerPeriodicPublish("machine/IO/outputs/read", 200, CanningMachine::getJsonOutputs);
-    MqttManager::registerPeriodicPublish("machine/IO/inputs/read", 200, CanningMachine::getJsonInputs);
+    MqttManager::registerPeriodicPublish("machine/IO/outputs/read", 200, MachineMaster::getJsonOutputs);
+    MqttManager::registerPeriodicPublish("machine/IO/inputs/read", 200, MachineMaster::getJsonInputs);
     MqttManager::registerPeriodicPublish("voice/keyword/listening", 200, [] {
         return String(VoiceKeywordModule::isListening());
     });
@@ -153,8 +153,8 @@ void setup() {
     });
 
     // Register keyword → event handlers
-    VoiceKeywordModule::registerKeyword(CanningMachine::allCom, [](const String &cmd) {
-        CanningMachine::processCommands(cmd.c_str());
+    VoiceKeywordModule::registerKeyword(MachineMaster::allCom, [](const String &cmd) {
+        MachineMaster::processCommands(cmd.c_str());
         MqttManager::publish("voice/keyword/match", cmd);
     }, true);
 
@@ -164,11 +164,11 @@ void setup() {
             return RGBColor::Blue().withAlpha(0.5f);
         }
 
-        if (CanningMachine::isPaused()) {
+        if (MachineMaster::isPaused()) {
             return RGBColor::Magenta().withAlpha(0.5f);
         }
 
-        if (CanningMachine::isRunning()) {
+        if (MachineMaster::isRunning()) {
             return RGBColor::Green().withAlpha(0.5f);
         }
 
@@ -181,15 +181,15 @@ void setup() {
 
     // --- 7. Canning Machine Logic & Startup Completion ---
     // Initialize hardware pins, sensors, and actuators for the canning machine.
-    CanningMachine::setup();
+    MachineMaster::setup();
 
-    CanningMachine::setOnStopCallback([] {
+    MachineMaster::setOnStopCallback([] {
         EvenTheRGBLedHasManagers::setColor(RGBColor::Red(), 1000);
     });
-    CanningMachine::setOnStartCallback([] {
+    MachineMaster::setOnStartCallback([] {
         EvenTheRGBLedHasManagers::setColor(RGBColor::Green(), 1000);
     });
-    CanningMachine::setOnPauseCallback([] {
+    MachineMaster::setOnPauseCallback([] {
         EvenTheRGBLedHasManagers::setColor(RGBColor::Magenta(), 1000);
     });
 
@@ -199,7 +199,7 @@ void setup() {
     EvenTheRGBLedHasManagers::setColor(RGBColor::Green(), 1000);
 
     // Launch asynchronous state machine tasks for canning operations.
-    CanningMachine::begin();
+    MachineMaster::begin();
 
 
 }

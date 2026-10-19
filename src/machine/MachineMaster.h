@@ -14,7 +14,7 @@
 #include <drivers/universal/UARTManager.h>
 
 
-class CanningMachine {
+class MachineMaster {
     enum class Stage : uint8_t {
         Reposo = 0,
         EsperaLata,
@@ -93,7 +93,7 @@ class CanningMachine {
     static inline std::function<void()> onResumeCommand = nullptr;
 
 public:
-    CanningMachine() = delete;
+    MachineMaster() = delete;
 
     static const inline std::vector<String> stopCom = { "stop" ,"disable","detener","desactivar"};
     static const inline std::vector<String> startCom = { "start" ,"enable","inicia","arranca"};
