@@ -22,28 +22,6 @@ void WebSeverManager::setup() {
         server.onNotFound(handleFileRequest);
     }
 #endif
-    server.on("/config/wifi/set", HTTP_POST, [](AsyncWebServerRequest *request) {
-                  if (request->_tempObject == nullptr) {
-                      request->send(200, "application/json", R"({"status":"success"})");
-                  } else {
-                      const auto *errorMsg = static_cast<String *>(request->_tempObject);
-                      const String responseJson = R"({"status":"error","message":")" + *errorMsg + R"("})";
-                      delete errorMsg;
-                      request->_tempObject = nullptr;
-                      request->send(400, "application/json", responseJson);
-                  }
-              }, nullptr, [](AsyncWebServerRequest *request, uint8_t *data, size_t length, size_t, size_t) {
-                  JsonDocument doc;
-                  const DeserializationError error = deserializeJson(doc, data, length);
-                  if (error) {
-                      SerialMonitor::enqueue("Error parsing JSON for Wifi config on HTTP: ");
-                      SerialMonitor::enqueueLine(error.c_str());
-                      request->_tempObject = new String(error.c_str());
-                      return;
-                  }
-                  WifiManager::wifiConfigJsonCallback(doc);
-                  request->_tempObject = nullptr;
-              });
 
 
     // Start server
@@ -66,6 +44,32 @@ void WebSeverManager::setOnRootRequested(std::function<void()> callback) {
 
 void WebSeverManager::setOnUpdateSuccessful(std::function<void()> callback) {
     onUpdateSuccessful = std::move(callback);
+}
+
+void WebSeverManager::registerJsonPostEndpoint(const String& path,const std::function<void(const JsonDocument &)> &callback, const char *onError) {
+    server.on(path, HTTP_POST, [](AsyncWebServerRequest *request) {
+              if (request->_tempObject == nullptr) {
+                  request->send(200, "application/json", R"({"status":"success"})");
+              } else {
+                  const auto *errorMsg = static_cast<String *>(request->_tempObject);
+                  const String responseJson = R"({"status":"error","message":")" + *errorMsg + R"("})";
+                  delete errorMsg;
+                  request->_tempObject = nullptr;
+                  request->send(400, "application/json", responseJson);
+              }
+          }, nullptr, [](AsyncWebServerRequest *request, uint8_t *data, size_t length, size_t, size_t) {
+              JsonDocument doc;
+              const DeserializationError error = deserializeJson(doc, data, length);
+              if (error) {
+                  SerialMonitor::enqueue(onError);
+                  SerialMonitor::enqueueLine(error.c_str());
+                  request->_tempObject = new String(error.c_str());
+                  return;
+              }
+              callback(doc);
+              request->_tempObject = nullptr;
+          });
+
 }
 
 void WebSeverManager::enableOTASupport(const char *username, const char *password, const char *path) {
