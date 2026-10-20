@@ -69,10 +69,18 @@ void WebSeverManager::setOnUpdateSuccessful(std::function<void()> callback) {
 }
 
 void WebSeverManager::enableOTASupport(const char *username, const char *password, const char *path) {
+    const String user = username ? String(username) : String();
+    const String pass = password ? String(password) : String();
+    const bool authRequired = user.length() > 0 && pass.length() > 0;
+
     auto &handler = server.on(
         path, HTTP_POST,
         // 1. Final Request Handler (runs after upload finishes)
-        [](AsyncWebServerRequest *request) {
+        [user, pass, authRequired](AsyncWebServerRequest *request) {
+            if (authRequired && !request->authenticate(user.c_str(), pass.c_str())) {
+                return request->requestAuthentication();
+            }
+
             const bool success = !Update.hasError() && Update.isFinished();
             AsyncWebServerResponse *response = request->beginResponse(
                 success ? 200 : 500,
@@ -97,8 +105,12 @@ void WebSeverManager::enableOTASupport(const char *username, const char *passwor
             }
         },
         // 2. Upload Handler (runs for multipart/form-data file uploads, e.g. curl -F "firmware=@...")
-        [](AsyncWebServerRequest *request, const String &filename, const size_t index, uint8_t *data, const size_t len,
+        [user, pass, authRequired](AsyncWebServerRequest *request, const String &filename, const size_t index, uint8_t *data, const size_t len,
            const bool final) {
+            if (authRequired && !request->authenticate(user.c_str(), pass.c_str())) {
+                return;
+            }
+
             static size_t lastReportedPercent = 0;
             if (index == 0) {
                 lastReportedPercent = 0;
@@ -133,7 +145,11 @@ void WebSeverManager::enableOTASupport(const char *username, const char *passwor
             }
         },
         // 3. Body Handler (runs for raw binary stream POSTs, e.g. curl -H "Content-Type: application/octet-stream" --data-binary @...)
-        [](AsyncWebServerRequest *request, uint8_t *data, const size_t len, const size_t index, const size_t total) {
+        [user, pass, authRequired](AsyncWebServerRequest *request, uint8_t *data, const size_t len, const size_t index, const size_t total) {
+            if (authRequired && !request->authenticate(user.c_str(), pass.c_str())) {
+                return;
+            }
+
             static size_t lastReportedPercent = 0;
             if (index == 0) {
                 lastReportedPercent = 0;
@@ -166,6 +182,10 @@ void WebSeverManager::enableOTASupport(const char *username, const char *passwor
             }
         }
     );
+
+    if (authRequired) {
+        handler.setAuthentication(username, password);
+    }
 }
 
 void WebSeverManager::handleFileRequest(AsyncWebServerRequest *request) {
