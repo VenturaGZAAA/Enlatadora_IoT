@@ -13,7 +13,7 @@
 
 bool WifiManager::start_ap = false;
 bool WifiManager::sta_connected = false;
-const char *WifiManager::hostname = "enlatadora-s3";
+const char *WifiManager::hostname = "esp32-unset-host";
 IPAddress WifiManager::server_ip = IPAddress(192, 168, 4, 1);
 
 void WifiManager::setupMdns() {

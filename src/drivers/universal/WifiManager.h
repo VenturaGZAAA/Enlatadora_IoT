@@ -22,7 +22,7 @@ class WifiManager {
 
     static bool connectToNetwork();
 
-    static bool startAccessPoint(const String& ap_ssid, const String& ap_password);
+    static bool startAccessPoint(const String &ap_ssid, const String &ap_password);
 
     static void setupMdns();
 
@@ -37,13 +37,19 @@ public:
         forced_ap = true;
         forced_sta = false;
     }
-    static void forceSTA(const String& ssid, const String& password) {
+
+    static void forceSTA(const String &ssid, const String &password) {
         forced_sta = true;
         forced_ap = false;
         forced_sta_ssid = ssid;
         forced_sta_password = password;
     }
-    static bool setup(const String& ap_ssid= "", const String& ap_password = "");
+
+    static void setHostname(const char *_hostname) {
+        hostname = _hostname;
+    }
+
+    static bool setup(const String &ap_ssid = "", const String &ap_password = "");
 
     static bool isConnected() { return sta_connected; }
     static bool isFailedToConnect() { return !start_ap && !sta_connected; }
