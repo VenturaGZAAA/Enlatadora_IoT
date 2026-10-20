@@ -146,6 +146,7 @@ void setup() {
 
     // --- 6. Web Dashboard Server ---
     // Start local HTTP dashboard server for local monitoring and control.
+    WebSeverManager::enableWifiPostEndpoint("/wifi/set");
     WebSeverManager::enableOTASupport("admin", "admin");
     WebSeverManager::setup();
 
