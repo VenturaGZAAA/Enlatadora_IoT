@@ -262,11 +262,3 @@ void MachineMaster::setOnResumeCallback(std::function<void()> callback) {
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
-
-void MachineMaster::stop() {
-    if (taskHandle != nullptr) {
-        SerialMonitor::enqueueLine("Stopping canning machine");
-        vTaskDelete(taskHandle);
-        taskHandle = nullptr;
-    }
-}

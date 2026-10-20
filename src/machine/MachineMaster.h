@@ -131,6 +131,5 @@ public:
     static void setOnPauseCallback(std::function<void()> callback);
     static void setOnResumeCallback(std::function<void()> callback);
 
-    static void stop();
 };
 #endif //ENLATADORA_IOT_CANNINGMACHINE_H
