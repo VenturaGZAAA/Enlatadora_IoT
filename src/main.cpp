@@ -146,11 +146,13 @@ void setup() {
 
     // --- 6. Web Dashboard Server ---
     // Start local HTTP dashboard server for local monitoring and control.
+    WebSeverManager::enableOTASupport("admin", "admin");
     WebSeverManager::setup();
 
     WebSeverManager::setOnRootRequested([] {
         EvenTheRGBLedHasManagers::setColor(RGBColor::Yellow().withAlphaInt(200), 250);
     });
+
 
     // Register keyword → event handlers
     VoiceKeywordModule::registerKeyword(MachineMaster::allCom, [](const String &cmd) {
@@ -207,5 +209,12 @@ void setup() {
 void loop() {
     // Primary application workflows run in asynchronous FreeRTOS tasks and callbacks.
     // Yield CPU time here to maximize efficiency and prevent watchdog resets.
-    vTaskDelay(pdMS_TO_TICKS(1000));
+    EvenTheRGBLedHasManagers::setColor(RGBColor::red().withAlpha(0.5),750);
+    vTaskDelay(pdMS_TO_TICKS(750));
+    EvenTheRGBLedHasManagers::setColor(RGBColor(),100);
+    vTaskDelay(pdMS_TO_TICKS(100));
+    EvenTheRGBLedHasManagers::setColor(RGBColor::white().withAlpha(0.5),500);
+    vTaskDelay(pdMS_TO_TICKS(500));
+    EvenTheRGBLedHasManagers::setColor(RGBColor(),100);
+    vTaskDelay(pdMS_TO_TICKS(100));
 }

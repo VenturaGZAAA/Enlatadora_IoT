@@ -27,6 +27,7 @@ class WebSeverManager {
 public:
     WebSeverManager() = delete;
 
+    static void enableOTASupport(const char *username, const char *password,const char *path = "/firmware");
     static void setup();
 
     static void setOnUpdateSuccessful(std::function<void()> callback);

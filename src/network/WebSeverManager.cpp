@@ -45,57 +45,7 @@ void WebSeverManager::setup() {
                   request->_tempObject = nullptr;
               });
 
-    server.on("/firmware", HTTP_POST,
-              // 1. Final Request Handler (runs after upload finishes)
-              [](AsyncWebServerRequest *request) {
-                  const bool success = !Update.hasError() && Update.isFinished();
-                  AsyncWebServerResponse *response = request->beginResponse(
-                      success ? 200 : 500,
-                      "text/plain",
-                      success ? "Update OK, rebooting..." : String("Update FAILED: ") + Update.errorString()
-                  );
-                  response->addHeader("Connection", "close");
-                  request->send(response);
 
-                  if (success) {
-                      // Schedule restart in a separate FreeRTOS task so AsyncTCP can finish transmitting the response
-                      xTaskCreate([](void *) {
-                          if (onUpdateSuccessful) {
-                              onUpdateSuccessful();
-                          }
-                          SerialMonitor::enqueueLine("Update OK, rebooting...");
-                          vTaskDelay(pdMS_TO_TICKS(1000));
-                          ESP.restart();
-                      }, "ota_restart", 2048, nullptr, 1, nullptr);
-                  } else {
-                      Update.abort();
-                  }
-              },
-              // 2. Upload Handler (runs for each chunk of the file)
-              [](AsyncWebServerRequest *, const String &filename, const size_t index, uint8_t *data, const size_t len,
-                 const bool final) {
-                  if (index == 0) {
-                      // First chunk: start the update
-                      SerialMonitor::enqueueLine("Update Start: " + filename);
-                      if (!Update.begin(UPDATE_SIZE_UNKNOWN, U_FLASH)) {
-                          Update.printError(Serial);
-                      }
-                  }
-                  if (!Update.hasError() && Update.isRunning()) {
-                      if (Update.write(data, len) != len) {
-                          Update.printError(Serial);
-                      }
-                  }
-                  if (final) {
-                      // Last chunk: finalize the update
-                      if (Update.end(true)) {
-                          SerialMonitor::enqueueLine("Update Success: " + String(index + len) + " bytes written");
-                      } else {
-                          Update.printError(Serial);
-                      }
-                  }
-              }
-    );
     // Start server
     server.begin();
     SerialMonitor::enqueueLine("🌐 HTTP server started on port 80");
@@ -116,6 +66,85 @@ void WebSeverManager::setOnRootRequested(std::function<void()> callback) {
 
 void WebSeverManager::setOnUpdateSuccessful(std::function<void()> callback) {
     onUpdateSuccessful = std::move(callback);
+}
+
+void WebSeverManager::enableOTASupport(const char *username, const char *password, const char *path) {
+    auto &handler = server.on(
+        path, HTTP_POST,
+        // 1. Final Request Handler (runs after upload finishes)
+        [](AsyncWebServerRequest *request) {
+            const bool success = !Update.hasError() && Update.isFinished();
+            AsyncWebServerResponse *response = request->beginResponse(
+                success ? 200 : 500,
+                "text/plain",
+                success ? "Update OK, rebooting..." : String("Update FAILED: ") + Update.errorString()
+            );
+            response->addHeader("Connection", "close");
+            request->send(response);
+
+            if (success) {
+                // Schedule restart in a separate FreeRTOS task so AsyncTCP can finish transmitting the response
+                xTaskCreate([](void *) {
+                    if (onUpdateSuccessful) {
+                        onUpdateSuccessful();
+                    }
+                    SerialMonitor::enqueueLine("Update OK, rebooting...");
+                    vTaskDelay(pdMS_TO_TICKS(1000));
+                    ESP.restart();
+                }, "ota_restart", 2048, nullptr, 1, nullptr);
+            } else {
+                Update.abort();
+            }
+        },
+        // 2. Upload Handler (runs for multipart/form-data file uploads, e.g. curl -F "firmware=@...")
+        [](AsyncWebServerRequest *, const String &filename, const size_t index, uint8_t *data, const size_t len,
+           const bool final) {
+            if (index == 0) {
+                // First chunk: start the update
+                SerialMonitor::enqueueLine("Update Start (Multipart): " + filename);
+                if (!Update.begin(UPDATE_SIZE_UNKNOWN, U_FLASH)) {
+                    Update.printError(Serial);
+                }
+            }
+            if (!Update.hasError() && Update.isRunning()) {
+                if (Update.write(data, len) != len) {
+                    Update.printError(Serial);
+                }
+            }
+            if (final) {
+                // Last chunk: finalize the update
+                if (Update.end(true)) {
+                    SerialMonitor::enqueueLine("Update Success: " + String(index + len) + " bytes written");
+                } else {
+                    Update.printError(Serial);
+                }
+            }
+        },
+        // 3. Body Handler (runs for raw binary stream POSTs, e.g. curl -H "Content-Type: application/octet-stream" --data-binary @...)
+        [](AsyncWebServerRequest *request, uint8_t *data, const size_t len, const size_t index, const size_t total) {
+            if (index == 0) {
+                // First chunk: start the update
+                SerialMonitor::enqueueLine("Update Start (Raw Body): " + String(total) + " bytes");
+                const size_t updateSize = (total > 0 && total != UPDATE_SIZE_UNKNOWN) ? total : UPDATE_SIZE_UNKNOWN;
+                if (!Update.begin(updateSize, U_FLASH)) {
+                    Update.printError(Serial);
+                }
+            }
+            if (!Update.hasError() && Update.isRunning()) {
+                if (Update.write(data, len) != len) {
+                    Update.printError(Serial);
+                }
+            }
+            if (index + len == total || (total == 0 && len == 0)) {
+                // Last chunk: finalize the update
+                if (Update.end(true)) {
+                    SerialMonitor::enqueueLine("Update Success: " + String(index + len) + " bytes written");
+                } else {
+                    Update.printError(Serial);
+                }
+            }
+        }
+    );
 }
 
 void WebSeverManager::handleFileRequest(AsyncWebServerRequest *request) {
