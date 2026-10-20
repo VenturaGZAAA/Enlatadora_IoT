@@ -72,6 +72,10 @@ void WebSeverManager::registerJsonPostEndpoint(const String& path,const std::fun
 
 }
 
+void WebSeverManager::enableWifiPostEndpoint(const String& path) {
+    registerJsonPostEndpoint(path, WifiManager::wifiConfigJsonCallback, "Error parsing JSON for Wifi config on HTTP: ");
+}
+
 void WebSeverManager::enableOTASupport(const char *username, const char *password, const char *path) {
     const String user = username ? String(username) : String();
     const String pass = password ? String(password) : String();

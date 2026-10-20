@@ -28,7 +28,7 @@ public:
     WebSeverManager() = delete;
 
     static void registerJsonPostEndpoint(const String& path,const std::function<void(const JsonDocument &)> &callback, const char *onError = "undefined");
-
+    static void enableWifiPostEndpoint(const String& path);
     static void enableOTASupport(const char *username, const char *password,const char *path = "/firmware");
     static void setup();
 
