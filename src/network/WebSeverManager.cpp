@@ -57,7 +57,7 @@ void WebSeverManager::registerJsonPostEndpoint(const String& path,const std::fun
                   request->_tempObject = nullptr;
                   request->send(400, "application/json", responseJson);
               }
-          }, nullptr, [](AsyncWebServerRequest *request, uint8_t *data, size_t length, size_t, size_t) {
+          }, nullptr, [callback, onError](AsyncWebServerRequest *request, uint8_t *data, size_t length, size_t, size_t) {
               JsonDocument doc;
               const DeserializationError error = deserializeJson(doc, data, length);
               if (error) {
