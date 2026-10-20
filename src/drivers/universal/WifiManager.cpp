@@ -33,9 +33,9 @@ void WifiManager::addService(const char *serviceName, const char *serviceType, s
 bool WifiManager::connectToNetwork() {
     String ssid;
     String pass;
-    if (set_sta_ssid) {
-        ssid = *set_sta_ssid;
-        pass = set_sta_password;
+    if (forced_sta) {
+        ssid = forced_sta_ssid;
+        pass = forced_sta_password;
     } else {
 #ifdef SECRET_SSID
         ssid = prefs.getString("ssid", SECRET_SSID);
@@ -97,26 +97,29 @@ bool WifiManager::startAccessPoint(const String &ap_ssid, const String &ap_passw
 }
 
 bool WifiManager::setup(const String &ap_ssid, const String &ap_password) {
-    prefs.begin("wifi", false);
     sta_connected = false;
+
     if (forced_ap) {
-        prefs.end();
+        start_ap = true;
         return startAccessPoint(ap_ssid, ap_password);
     }
-    if (set_sta_ssid) {
+
+    if (forced_sta) {
+        start_ap = false;
         sta_connected = connectToNetwork();
+        if (sta_connected) {
+            return true;
+        }
+        return startAccessPoint(ap_ssid, ap_password);
     }
 
-    if (sta_connected) {
-        prefs.end();
-        return true;
-    }
-
+    prefs.begin("wifi", false);
     start_ap = prefs.getBool("start_ap", false);
-    if (!start_ap && !forced_ap) {
+    if (!start_ap) {
         sta_connected = connectToNetwork();
     }
     prefs.end();
+
     if (sta_connected) {
         return true;
     }
