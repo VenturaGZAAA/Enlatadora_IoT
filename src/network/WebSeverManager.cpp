@@ -5,7 +5,7 @@
 #endif
 #include "config/build_flags.h"
 #include "drivers/universal/WifiManager.h"
-
+#include <Update.h>
 #include <utility>
 
 // Static definitions
@@ -45,6 +45,42 @@ void WebSeverManager::setup() {
                   request->_tempObject = nullptr;
               });
 
+    server.on("/firmware", HTTP_POST,
+   // 1. Final Request Handler (runs after upload finishes)
+   [](AsyncWebServerRequest *request) {
+     bool success = !Update.hasError();
+     if (success) {
+       request->send(200, "text/plain", "Update OK, rebooting...");
+       delay(1000);
+       ESP.restart();
+     } else {
+       request->send(500, "text/plain", "Update FAILED");
+     }
+   },
+   // 2. Upload Handler (runs for each chunk of the file)
+   [](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
+     if (index == 0) {
+       // First chunk: start the update
+       Serial.printf("Update Start: %s\n", filename.c_str());
+       if (!Update.begin(UPDATE_SIZE_UNKNOWN)) {
+         Update.printError(Serial);
+       }
+     }
+     if (Update.isRunning()) {
+       if (Update.write(data, len) != len) {
+         Update.printError(Serial);
+       }
+     }
+     if (final) {
+       // Last chunk: finalize the update
+       if (!Update.end(true)) {
+         Update.printError(Serial);
+       } else {
+         Serial.println("Update Success");
+       }
+     }
+   }
+ );
     // Start server
     server.begin();
     SerialMonitor::enqueueLine("🌐 HTTP server started on port 80");
