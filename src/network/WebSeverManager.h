@@ -22,10 +22,14 @@ class WebSeverManager {
 
 #endif
 
+    static inline  std::function<void()> onUpdateSuccessful = nullptr;
+
 public:
     WebSeverManager() = delete;
 
     static void setup();
+
+    static void setOnUpdateSuccessful(std::function<void()> callback);
 #ifdef SD_CARD_CONNECTED
     static void setOnRootRequested(std::function<void()> callback);
 #endif

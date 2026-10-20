@@ -60,6 +60,10 @@ void WebSeverManager::setup() {
                   if (success) {
                       // Schedule restart in a separate FreeRTOS task so AsyncTCP can finish transmitting the response
                       xTaskCreate([](void *) {
+                          if (onUpdateSuccessful) {
+                              onUpdateSuccessful();
+                          }
+                          SerialMonitor::enqueueLine("Update OK, rebooting...");
                           vTaskDelay(pdMS_TO_TICKS(1000));
                           ESP.restart();
                       }, "ota_restart", 2048, nullptr, 1, nullptr);
@@ -72,7 +76,7 @@ void WebSeverManager::setup() {
                  const bool final) {
                   if (index == 0) {
                       // First chunk: start the update
-                      Serial.printf("Update Start: %s\n", filename.c_str());
+                      SerialMonitor::enqueueLine("Update Start: " + filename);
                       if (!Update.begin(UPDATE_SIZE_UNKNOWN, U_FLASH)) {
                           Update.printError(Serial);
                       }
@@ -85,7 +89,7 @@ void WebSeverManager::setup() {
                   if (final) {
                       // Last chunk: finalize the update
                       if (Update.end(true)) {
-                          Serial.printf("Update Success: %u bytes written\n", index + len);
+                          SerialMonitor::enqueueLine("Update Success: " + String(index + len) + " bytes written");
                       } else {
                           Update.printError(Serial);
                       }
@@ -110,6 +114,9 @@ void WebSeverManager::setOnRootRequested(std::function<void()> callback) {
 }
 #endif
 
+void WebSeverManager::setOnUpdateSuccessful(std::function<void()> callback) {
+    onUpdateSuccessful = std::move(callback);
+}
 
 void WebSeverManager::handleFileRequest(AsyncWebServerRequest *request) {
     // 1. Determine the base file path (without compression suffix)
