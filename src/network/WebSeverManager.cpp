@@ -97,9 +97,11 @@ void WebSeverManager::enableOTASupport(const char *username, const char *passwor
             }
         },
         // 2. Upload Handler (runs for multipart/form-data file uploads, e.g. curl -F "firmware=@...")
-        [](AsyncWebServerRequest *, const String &filename, const size_t index, uint8_t *data, const size_t len,
+        [](AsyncWebServerRequest *request, const String &filename, const size_t index, uint8_t *data, const size_t len,
            const bool final) {
+            static size_t lastReportedPercent = 0;
             if (index == 0) {
+                lastReportedPercent = 0;
                 // First chunk: start the update
                 SerialMonitor::enqueueLine("Update Start (Multipart): " + filename);
                 if (!Update.begin(UPDATE_SIZE_UNKNOWN, U_FLASH)) {
@@ -109,12 +111,22 @@ void WebSeverManager::enableOTASupport(const char *username, const char *passwor
             if (!Update.hasError() && Update.isRunning()) {
                 if (Update.write(data, len) != len) {
                     Update.printError(Serial);
+                } else {
+                    const size_t total = request->contentLength();
+                    if (total > 0) {
+                        const size_t current = index + len;
+                        const size_t percent = (current * 100) / total;
+                        if (percent >= lastReportedPercent + 10 && percent < 100) {
+                            lastReportedPercent = (percent / 10) * 10;
+                            SerialMonitor::enqueueLine("OTA Progress: " + String(lastReportedPercent) + "% (" + String(current) + " bytes)");
+                        }
+                    }
                 }
             }
             if (final) {
                 // Last chunk: finalize the update
                 if (Update.end(true)) {
-                    SerialMonitor::enqueueLine("Update Success: " + String(index + len) + " bytes written");
+                    SerialMonitor::enqueueLine("Update Success: " + String(index + len) + " bytes written (100%)");
                 } else {
                     Update.printError(Serial);
                 }
@@ -122,7 +134,9 @@ void WebSeverManager::enableOTASupport(const char *username, const char *passwor
         },
         // 3. Body Handler (runs for raw binary stream POSTs, e.g. curl -H "Content-Type: application/octet-stream" --data-binary @...)
         [](AsyncWebServerRequest *request, uint8_t *data, const size_t len, const size_t index, const size_t total) {
+            static size_t lastReportedPercent = 0;
             if (index == 0) {
+                lastReportedPercent = 0;
                 // First chunk: start the update
                 SerialMonitor::enqueueLine("Update Start (Raw Body): " + String(total) + " bytes");
                 const size_t updateSize = (total > 0 && total != UPDATE_SIZE_UNKNOWN) ? total : UPDATE_SIZE_UNKNOWN;
@@ -133,12 +147,19 @@ void WebSeverManager::enableOTASupport(const char *username, const char *passwor
             if (!Update.hasError() && Update.isRunning()) {
                 if (Update.write(data, len) != len) {
                     Update.printError(Serial);
+                } else if (total > 0) {
+                    const size_t current = index + len;
+                    const size_t percent = (current * 100) / total;
+                    if (percent >= lastReportedPercent + 10 && percent < 100) {
+                        lastReportedPercent = (percent / 10) * 10;
+                        SerialMonitor::enqueueLine("OTA Progress: " + String(lastReportedPercent) + "% (" + String(current) + "/" + String(total) + " bytes)");
+                    }
                 }
             }
             if (index + len == total || (total == 0 && len == 0)) {
                 // Last chunk: finalize the update
                 if (Update.end(true)) {
-                    SerialMonitor::enqueueLine("Update Success: " + String(index + len) + " bytes written");
+                    SerialMonitor::enqueueLine("Update Success: " + String(index + len) + " bytes written (100%)");
                 } else {
                     Update.printError(Serial);
                 }
