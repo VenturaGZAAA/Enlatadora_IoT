@@ -206,15 +206,26 @@ void setup() {
 
 }
 
+// #define RGB_TEST
 void loop() {
-    // Primary application workflows run in asynchronous FreeRTOS tasks and callbacks.
-    // Yield CPU time here to maximize efficiency and prevent watchdog resets.
-    EvenTheRGBLedHasManagers::setColor(RGBColor::red().withAlpha(0.5),750);
-    vTaskDelay(pdMS_TO_TICKS(750));
+
+#ifndef RGB_TEST
+    vTaskDelay(pdMS_TO_TICKS(1000));
+#else
+
+    constexpr float alpha = 0.5f;
+    const RGBColor color1 = RGBColor::red().withAlpha(alpha);
+    constexpr uint32_t delay1 = 750;
+    const RGBColor color2 = RGBColor::white().withAlpha(alpha);
+    constexpr uint32_t delay2 = 500;
+
+    EvenTheRGBLedHasManagers::setColor(color1,delay1);
+    vTaskDelay(pdMS_TO_TICKS(delay1));
     EvenTheRGBLedHasManagers::setColor(RGBColor(),100);
     vTaskDelay(pdMS_TO_TICKS(100));
-    EvenTheRGBLedHasManagers::setColor(RGBColor::white().withAlpha(0.5),500);
-    vTaskDelay(pdMS_TO_TICKS(500));
+    EvenTheRGBLedHasManagers::setColor(color2,delay2);
+    vTaskDelay(pdMS_TO_TICKS(delay2));
     EvenTheRGBLedHasManagers::setColor(RGBColor(),100);
     vTaskDelay(pdMS_TO_TICKS(100));
+#endif
 }

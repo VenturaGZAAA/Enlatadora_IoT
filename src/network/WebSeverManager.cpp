@@ -77,7 +77,7 @@ void WebSeverManager::enableOTASupport(const char *username, const char *passwor
             AsyncWebServerResponse *response = request->beginResponse(
                 success ? 200 : 500,
                 "text/plain",
-                success ? "Update OK, rebooting..." : String("Update FAILED: ") + Update.errorString()
+                success ? "Update OK, rebooting...\n" : String("Update FAILED: ") + Update.errorString() + "\n"
             );
             response->addHeader("Connection", "close");
             request->send(response);
