@@ -12,9 +12,12 @@
 class WifiManager {
     static inline Preferences prefs;
     static bool start_ap;
+    static inline bool forced_ap = false;
     static bool sta_connected;
     static const char *hostname;
     static IPAddress server_ip;
+    static inline const String *set_sta_ssid = nullptr;
+    static inline String set_sta_password = "";
 
     static bool connectToNetwork();
 
@@ -29,6 +32,8 @@ public:
 
     static void wifiConfigJsonCallback(const JsonDocument &doc);
 
+    static void forceAp() { forced_ap = true; }
+    static void forceSTA(const String& ssid, const String& password) { set_sta_ssid = &ssid; set_sta_password = password; }
     static bool setup(const String& ap_ssid= "", const String& ap_password = "");
 
     static bool isConnected() { return sta_connected; }

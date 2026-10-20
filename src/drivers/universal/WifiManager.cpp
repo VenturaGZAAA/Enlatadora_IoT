@@ -31,14 +31,21 @@ void WifiManager::addService(const char *serviceName, const char *serviceType, s
 }
 
 bool WifiManager::connectToNetwork() {
+    String ssid;
+    String pass;
+    if (set_sta_ssid) {
+        ssid = *set_sta_ssid;
+        pass = set_sta_password;
+    } else {
 #ifdef SECRET_SSID
-    const auto ssid = prefs.getString("ssid", SECRET_SSID);
-    const auto pass = prefs.getString("pass", SECRET_PASSWORD);
+        ssid = prefs.getString("ssid", SECRET_SSID);
+        pass = prefs.getString("pass", SECRET_PASSWORD);
 
 #else
-    const auto ssid = prefs.getString("ssid");
-    const auto pass = prefs.getString("pass");
+        ssid = prefs.getString("ssid");
+        pass = prefs.getString("pass");
 #endif
+    }
 
     if (ssid.length() == 0) {
         return false;
@@ -68,7 +75,7 @@ bool WifiManager::connectToNetwork() {
     return false;
 }
 
-bool WifiManager::startAccessPoint(const String& ap_ssid, const String& ap_password) {
+bool WifiManager::startAccessPoint(const String &ap_ssid, const String &ap_password) {
     const auto gateway = IPAddress(192, 168, 4, 1);
     const auto subnet = IPAddress(255, 255, 255, 0);
 
@@ -89,12 +96,24 @@ bool WifiManager::startAccessPoint(const String& ap_ssid, const String& ap_passw
     return false;
 }
 
-bool WifiManager::setup(const String& ap_ssid, const String& ap_password) {
+bool WifiManager::setup(const String &ap_ssid, const String &ap_password) {
     prefs.begin("wifi", false);
+    sta_connected = false;
+    if (forced_ap) {
+        prefs.end();
+        return startAccessPoint(ap_ssid, ap_password);
+    }
+    if (set_sta_ssid) {
+        sta_connected = connectToNetwork();
+    }
+
+    if (sta_connected) {
+        prefs.end();
+        return true;
+    }
 
     start_ap = prefs.getBool("start_ap", false);
-    sta_connected = false;
-    if (!start_ap) {
+    if (!start_ap && !forced_ap) {
         sta_connected = connectToNetwork();
     }
     prefs.end();
