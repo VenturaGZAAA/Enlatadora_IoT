@@ -70,6 +70,8 @@ class MachineMaster {
     static inline bool machineRunning = false;
     static inline bool machinePaused = false;
     static inline bool emergencyStop = false;
+    static inline bool authorizedSystem = false;
+    static inline bool forcedAuthorization = false;
 
     static inline bool allowOutputOverride = true;
     static inline TaskHandle_t taskHandle = nullptr;

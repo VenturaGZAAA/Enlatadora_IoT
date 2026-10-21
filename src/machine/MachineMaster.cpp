@@ -37,6 +37,15 @@ void MachineMaster::processMachineState(const JsonDocument &json) {
     if (json["paused"].is<bool>()) {
         machinePaused = json["paused"].as<bool>();
     }
+
+    if (json["authorizedSystem"].is<bool>()) {
+        authorizedSystem = json["authorizedSystem"].as<bool>();
+    }
+
+    if (json["forcedAuthorization"].is<bool>()) {
+        forcedAuthorization = json["forcedAuthorization"].as<bool>();
+    }
+
     if (json["stage_name"].is<String>()) {
         stageName = json["stage_name"].as<String>();
     }
@@ -112,6 +121,8 @@ String MachineMaster::getSerializedState() {
     JsonDocument jsonDoc;
     jsonDoc["running"] = machineRunning;
     jsonDoc["paused"] = machinePaused;
+    jsonDoc["authorizedSystem"] = authorizedSystem;
+    jsonDoc["forcedAuthorization"] = forcedAuthorization;
     jsonDoc["stage"] = getStage();
     jsonDoc["output_override"] = allowOutputOverride;
     String jsonOutput;
