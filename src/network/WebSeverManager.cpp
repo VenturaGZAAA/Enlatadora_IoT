@@ -46,33 +46,35 @@ void WebSeverManager::setOnUpdateSuccessful(std::function<void()> callback) {
     onUpdateSuccessful = std::move(callback);
 }
 
-void WebSeverManager::registerJsonPostEndpoint(const String& path,const std::function<void(const JsonDocument &)> &callback, const char *onError) {
+void WebSeverManager::registerJsonPostEndpoint(const String &path,
+                                               const std::function<void(const JsonDocument &)> &callback,
+                                               const char *onError) {
     server.on(path, HTTP_POST, [](AsyncWebServerRequest *request) {
-              if (request->_tempObject == nullptr) {
-                  request->send(200, "application/json", R"({"status":"success"})");
-              } else {
-                  const auto *errorMsg = static_cast<String *>(request->_tempObject);
-                  const String responseJson = R"({"status":"error","message":")" + *errorMsg + R"("})";
-                  delete errorMsg;
+                  if (request->_tempObject == nullptr) {
+                      request->send(200, "application/json", R"({"status":"success"})");
+                  } else {
+                      const auto *errorMsg = static_cast<String *>(request->_tempObject);
+                      const String responseJson = R"({"status":"error","message":")" + *errorMsg + R"("})";
+                      delete errorMsg;
+                      request->_tempObject = nullptr;
+                      request->send(400, "application/json", responseJson);
+                  }
+              }, nullptr, [callback, onError](AsyncWebServerRequest *request, uint8_t *data, size_t length, size_t,
+                                              size_t) {
+                  JsonDocument doc;
+                  const DeserializationError error = deserializeJson(doc, data, length);
+                  if (error) {
+                      Monitor::write(onError);
+                      Monitor::writeLine(error.c_str());
+                      request->_tempObject = new String(error.c_str());
+                      return;
+                  }
+                  callback(doc);
                   request->_tempObject = nullptr;
-                  request->send(400, "application/json", responseJson);
-              }
-          }, nullptr, [callback, onError](AsyncWebServerRequest *request, uint8_t *data, size_t length, size_t, size_t) {
-              JsonDocument doc;
-              const DeserializationError error = deserializeJson(doc, data, length);
-              if (error) {
-                  Monitor::write(onError);
-                  Monitor::writeLine(error.c_str());
-                  request->_tempObject = new String(error.c_str());
-                  return;
-              }
-              callback(doc);
-              request->_tempObject = nullptr;
-          });
-
+              });
 }
 
-void WebSeverManager::enableWifiPostEndpoint(const String& path) {
+void WebSeverManager::enableWifiPostEndpoint(const String &path) {
     registerJsonPostEndpoint(path, WifiManager::wifiConfigJsonCallback, "Error parsing JSON for Wifi config on HTTP: ");
 }
 
@@ -113,8 +115,9 @@ void WebSeverManager::enableOTASupport(const char *username, const char *passwor
             }
         },
         // 2. Upload Handler (runs for multipart/form-data file uploads, e.g. curl -F "firmware=@...")
-        [user, pass, authRequired](AsyncWebServerRequest *request, const String &filename, const size_t index, uint8_t *data, const size_t len,
-           const bool final) {
+        [user, pass, authRequired](AsyncWebServerRequest *request, const String &filename, const size_t index,
+                                   uint8_t *data, const size_t len,
+                                   const bool final) {
             if (authRequired && !request->authenticate(user.c_str(), pass.c_str())) {
                 return;
             }
@@ -138,7 +141,8 @@ void WebSeverManager::enableOTASupport(const char *username, const char *passwor
                         const size_t percent = (current * 100) / total;
                         if (percent >= lastReportedPercent + 10 && percent < 100) {
                             lastReportedPercent = (percent / 10) * 10;
-                            Monitor::writeLine("OTA Progress: " + String(lastReportedPercent) + "% (" + String(current) + " bytes)");
+                            Monitor::writeLine(
+                                "OTA Progress: " + String(lastReportedPercent) + "% (" + String(current) + " bytes)");
                         }
                     }
                 }
@@ -153,7 +157,8 @@ void WebSeverManager::enableOTASupport(const char *username, const char *passwor
             }
         },
         // 3. Body Handler (runs for raw binary stream POSTs, e.g. curl -H "Content-Type: application/octet-stream" --data-binary @...)
-        [user, pass, authRequired](AsyncWebServerRequest *request, uint8_t *data, const size_t len, const size_t index, const size_t total) {
+        [user, pass, authRequired](AsyncWebServerRequest *request, uint8_t *data, const size_t len, const size_t index,
+                                   const size_t total) {
             if (authRequired && !request->authenticate(user.c_str(), pass.c_str())) {
                 return;
             }
@@ -176,7 +181,9 @@ void WebSeverManager::enableOTASupport(const char *username, const char *passwor
                     const size_t percent = (current * 100) / total;
                     if (percent >= lastReportedPercent + 10 && percent < 100) {
                         lastReportedPercent = (percent / 10) * 10;
-                        Monitor::writeLine("OTA Progress: " + String(lastReportedPercent) + "% (" + String(current) + "/" + String(total) + " bytes)");
+                        Monitor::writeLine(
+                            "OTA Progress: " + String(lastReportedPercent) + "% (" + String(current) + "/" +
+                            String(total) + " bytes)");
                     }
                 }
             }
