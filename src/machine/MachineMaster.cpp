@@ -95,8 +95,8 @@ void MachineMaster::deserializeOutputs(const JsonObjectConst json) {
 }
 
 void MachineMaster::startTask(const UBaseType_t priority,
-                               const uint32_t stackSize,
-                               const BaseType_t core) {
+                              const uint32_t stackSize,
+                              const BaseType_t core) {
     xTaskCreatePinnedToCore(
         reinterpret_cast<TaskFunction_t>(run),
         "CanningMachine",
@@ -199,7 +199,9 @@ void MachineMaster::processCommands(const char *command) {
     const String msg = "Command received: " + cmd;
     Monitor::writeLine(msg);
 
-    if (cmd == "AuthorizeOutputOverride") {
+    if (cmd == "ForceAuthorization") {
+        controller->writeLine("ForceAuthorization");
+    } else if (cmd == "AuthorizeOutputOverride") {
         allowOutputOverride = true;
     } else if (cmd == "DisableOutputOverride") {
         allowOutputOverride = false;
