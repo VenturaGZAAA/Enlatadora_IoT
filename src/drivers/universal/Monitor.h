@@ -13,7 +13,7 @@
 #include <freertos/task.h>
 #include <freertos/semphr.h>
 
-class SerialMonitor {
+class Monitor {
     static inline std::queue<std::string> serialQueue;
     static inline std::vector<std::function<void(const char *)> > serialCallbacks;
     static inline std::vector<std::function<void(JsonDocument)> > serialJsonCallbacks;
@@ -27,7 +27,7 @@ class SerialMonitor {
     static void run();
 
 public:
-    SerialMonitor() = delete;
+    Monitor() = delete;
 
     static void write(const std::string &message);
 

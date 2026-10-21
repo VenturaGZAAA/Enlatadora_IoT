@@ -5,7 +5,7 @@
 #include "VoiceKeywordModule.h"
 #include "config/secrets.h"
 #include "config/build_flags.h"
-#include "drivers/universal/SerialMonitor.h"
+#include "drivers/universal/Monitor.h"
 #include "drivers/universal/WifiManager.h"
 #include <utility>
 #include <driver/gpio.h>
@@ -129,18 +129,18 @@ void VoiceKeywordModule::init() {
 
 
     if (!initI2S()) {
-        SerialMonitor::writeLine("[Voice] Module failed to initialize");
+        Monitor::writeLine("[Voice] Module failed to initialize");
         return;
     }
 
 
     audioQueue = xQueueCreate(AUDIO_QUEUE_LENGTH, AUDIO_QUEUE_ITEM_SIZE);
     if (!audioQueue) {
-        SerialMonitor::writeLine("[Voice] Failed to create audio queue");
+        Monitor::writeLine("[Voice] Failed to create audio queue");
         return;
     }
     initialized = true;
-    SerialMonitor::writeLine("[Voice] I2S microphone initialized");
+    Monitor::writeLine("[Voice] I2S microphone initialized");
 }
 
 void VoiceKeywordModule::setOnStarted(std::function<void()> callback) {
@@ -157,29 +157,29 @@ void VoiceKeywordModule::setOnStopped(std::function<void()> callback) {
 void VoiceKeywordModule::begin() {
 
 #if defined(DISABLE_AUDIO)
-    SerialMonitor::writeLine("[Voice] Audio disabled");
+    Monitor::writeLine("[Voice] Audio disabled");
     return;
 #endif
 
 
     if (failedToInitialize) {
-        SerialMonitor::writeLine("[Voice] Module failed to initialize");
+        Monitor::writeLine("[Voice] Module failed to initialize");
         return;
     }
 
     if (!initialized) {
-        SerialMonitor::writeLine("[Voice] Module not initialized");
+        Monitor::writeLine("[Voice] Module not initialized");
         return;
     }
 
     if (!WifiManager::isConnected()) {
-        SerialMonitor::writeLine("[Voice] Not connected to WiFi network");
+        Monitor::writeLine("[Voice] Not connected to WiFi network");
         return;
     }
 
 
     if (captureTaskHandle != nullptr || uploadTaskHandle != nullptr) {
-        SerialMonitor::writeLine("[Voice] Tasks already running");
+        Monitor::writeLine("[Voice] Tasks already running");
         return;
     }
     if (!audioQueue) {
@@ -196,7 +196,7 @@ void VoiceKeywordModule::begin() {
     );
     listening = true;
 
-    SerialMonitor::writeLine("[Voice] Voice keyword module started");
+    Monitor::writeLine("[Voice] Voice keyword module started");
     if (onStarted != nullptr) {
         onStarted();
     }
@@ -216,7 +216,7 @@ void VoiceKeywordModule::processCommands(const char *command) {
 void VoiceKeywordModule::stop() {
 
 #if defined(DISABLE_AUDIO)
-    SerialMonitor::writeLine("[Voice] Audio disabled - can't stop");
+    Monitor::writeLine("[Voice] Audio disabled - can't stop");
     return;
 #endif
 
@@ -241,7 +241,7 @@ void VoiceKeywordModule::stop() {
 
     i2s_stop(I2S_PORT);
     listening = false;
-    SerialMonitor::writeLine("[Voice] Module stopped safely");
+    Monitor::writeLine("[Voice] Module stopped safely");
     if (onStopped != nullptr) {
         onStopped();
     }
@@ -261,7 +261,7 @@ void VoiceKeywordModule::captureTask(void *param) {
             buffer = static_cast<int16_t *>(malloc(BUFFER_SIZE)); // fallback to internal RAM
         }
         if (!buffer) {
-            SerialMonitor::writeLine("[Voice] Buffer allocation failed — retrying");
+            Monitor::writeLine("[Voice] Buffer allocation failed — retrying");
             vTaskDelay(pdMS_TO_TICKS(1000));
             continue;
         }
@@ -284,7 +284,7 @@ void VoiceKeywordModule::captureTask(void *param) {
                 portMAX_DELAY
             );
             if (err != ESP_OK) {
-                SerialMonitor::writeLine("[Voice] I2S read error: " + std::to_string(err));
+                Monitor::writeLine("[Voice] I2S read error: " + std::to_string(err));
                 break;
             }
 
@@ -318,13 +318,13 @@ void VoiceKeywordModule::captureTask(void *param) {
                 sumSquares += static_cast<int64_t>(buffer[i]) * buffer[i];
             }
             rms = static_cast<int32_t>(sqrt(static_cast<double>(sumSquares) / totalSamples));
-            SerialMonitor::writeLine("[Voice] Chunk captured (" + String(totalSamples) + " samples) | Peak: [" +
+            Monitor::writeLine("[Voice] Chunk captured (" + String(totalSamples) + " samples) | Peak: [" +
                                        String(minSample) + ".." + String(maxSample) + "] | RMS: " + String(rms));
         }
 
         // Avoid uploading silent chunks: save network bandwidth, CPU time, and API usage
         if (rms < RMS_THRESHOLD) {
-            SerialMonitor::writeLine(
+            Monitor::writeLine(
                 "[Voice] RMS below threshold (" + String(rms) + " < " + String(RMS_THRESHOLD) + ") — skipping upload");
             free(buffer);
             continue;
@@ -337,7 +337,7 @@ void VoiceKeywordModule::captureTask(void *param) {
 
         // Push to queue — blocks if full (backpressure)
         if (xQueueSend(audioQueue, &chunk, pdMS_TO_TICKS(5000)) != pdPASS) {
-            SerialMonitor::writeLine("[Voice] Queue full — dropping chunk");
+            Monitor::writeLine("[Voice] Queue full — dropping chunk");
             free(buffer);
         }
         // No delay — immediately begin next 5-second capture
@@ -379,7 +379,7 @@ void VoiceKeywordModule::uploadTask(void *param) {
         }
 
         if (!payload) {
-            SerialMonitor::writeLine("[Voice] Failed to allocate upload buffer");
+            Monitor::writeLine("[Voice] Failed to allocate upload buffer");
             free(chunk.data);
             continue;
         }
@@ -414,24 +414,24 @@ void VoiceKeywordModule::uploadTask(void *param) {
                 JsonDocument doc;
                 const DeserializationError err = deserializeJson(doc, responsePayload);
                 if (err) {
-                    SerialMonitor::writeLine("[Voice] JSON parse error: " + String(err.c_str()));
+                    Monitor::writeLine("[Voice] JSON parse error: " + String(err.c_str()));
                 } else {
                     String transcript = doc["text"] | "";
                     transcript.trim();
                     if (transcript.isEmpty()) {
-                        SerialMonitor::writeLine("[Voice] Empty transcript (silence)");
+                        Monitor::writeLine("[Voice] Empty transcript (silence)");
                     } else {
-                        SerialMonitor::writeLine("[Voice] Transcript: \"" + transcript + "\"");
+                        Monitor::writeLine("[Voice] Transcript: \"" + transcript + "\"");
                         processTranscript(transcript);
                     }
                 }
             } else {
                 const String errResponse = http.getString();
-                SerialMonitor::writeLine("[Voice] Groq API error: " + String(httpCode) + " - " + errResponse);
+                Monitor::writeLine("[Voice] Groq API error: " + String(httpCode) + " - " + errResponse);
             }
             http.end();
         } else {
-            SerialMonitor::writeLine("[Voice] Failed to begin HTTP request");
+            Monitor::writeLine("[Voice] Failed to begin HTTP request");
         }
 
         free(payload);
@@ -523,7 +523,7 @@ void VoiceKeywordModule::processTranscript(const String &transcript) {
             String kwLower = keyword;
             kwLower.toLowerCase();
             if (lower.indexOf(kwLower) >= 0) {
-                SerialMonitor::writeLine("[Voice] Keyword matched: " +
+                Monitor::writeLine("[Voice] Keyword matched: " +
                                            keyword);
                 if (callback) callback(keyword);
                 if (stopOnFirstMatch) break;

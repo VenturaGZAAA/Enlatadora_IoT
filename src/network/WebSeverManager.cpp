@@ -1,5 +1,5 @@
 #include "WebSeverManager.h"
-#include "drivers/universal/SerialMonitor.h"
+#include "drivers/universal/Monitor.h"
 #ifdef SD_CARD_CONNECTED
 #include "drivers/specific/SdCardManager.h"
 #endif
@@ -26,10 +26,10 @@ void WebSeverManager::setup() {
 
     // Start server
     server.begin();
-    SerialMonitor::writeLine("🌐 HTTP server started on port 80");
+    Monitor::writeLine("🌐 HTTP server started on port 80");
 #ifdef SD_CARD_CONNECTED
     if (SdCardManager::isMounted()) {
-        SerialMonitor::writeLine("📍 Open http://" + WifiManager::getServerIP().toString() + " in your browser");
+        Monitor::writeLine("📍 Open http://" + WifiManager::getServerIP().toString() + " in your browser");
     }
 #endif
     WifiManager::addService("http", "tcp", 80);
@@ -61,8 +61,8 @@ void WebSeverManager::registerJsonPostEndpoint(const String& path,const std::fun
               JsonDocument doc;
               const DeserializationError error = deserializeJson(doc, data, length);
               if (error) {
-                  SerialMonitor::write(onError);
-                  SerialMonitor::writeLine(error.c_str());
+                  Monitor::write(onError);
+                  Monitor::writeLine(error.c_str());
                   request->_tempObject = new String(error.c_str());
                   return;
               }
@@ -104,7 +104,7 @@ void WebSeverManager::enableOTASupport(const char *username, const char *passwor
                     if (onUpdateSuccessful) {
                         onUpdateSuccessful();
                     }
-                    SerialMonitor::writeLine("Update OK, rebooting...");
+                    Monitor::writeLine("Update OK, rebooting...");
                     vTaskDelay(pdMS_TO_TICKS(1000));
                     ESP.restart();
                 }, "ota_restart", 2048, nullptr, 1, nullptr);
@@ -123,7 +123,7 @@ void WebSeverManager::enableOTASupport(const char *username, const char *passwor
             if (index == 0) {
                 lastReportedPercent = 0;
                 // First chunk: start the update
-                SerialMonitor::writeLine("Update Start (Multipart): " + filename);
+                Monitor::writeLine("Update Start (Multipart): " + filename);
                 if (!Update.begin(UPDATE_SIZE_UNKNOWN, U_FLASH)) {
                     Update.printError(Serial);
                 }
@@ -138,7 +138,7 @@ void WebSeverManager::enableOTASupport(const char *username, const char *passwor
                         const size_t percent = (current * 100) / total;
                         if (percent >= lastReportedPercent + 10 && percent < 100) {
                             lastReportedPercent = (percent / 10) * 10;
-                            SerialMonitor::writeLine("OTA Progress: " + String(lastReportedPercent) + "% (" + String(current) + " bytes)");
+                            Monitor::writeLine("OTA Progress: " + String(lastReportedPercent) + "% (" + String(current) + " bytes)");
                         }
                     }
                 }
@@ -146,7 +146,7 @@ void WebSeverManager::enableOTASupport(const char *username, const char *passwor
             if (final) {
                 // Last chunk: finalize the update
                 if (Update.end(true)) {
-                    SerialMonitor::writeLine("Update Success: " + String(index + len) + " bytes written (100%)");
+                    Monitor::writeLine("Update Success: " + String(index + len) + " bytes written (100%)");
                 } else {
                     Update.printError(Serial);
                 }
@@ -162,7 +162,7 @@ void WebSeverManager::enableOTASupport(const char *username, const char *passwor
             if (index == 0) {
                 lastReportedPercent = 0;
                 // First chunk: start the update
-                SerialMonitor::writeLine("Update Start (Raw Body): " + String(total) + " bytes");
+                Monitor::writeLine("Update Start (Raw Body): " + String(total) + " bytes");
                 const size_t updateSize = (total > 0 && total != UPDATE_SIZE_UNKNOWN) ? total : UPDATE_SIZE_UNKNOWN;
                 if (!Update.begin(updateSize, U_FLASH)) {
                     Update.printError(Serial);
@@ -176,14 +176,14 @@ void WebSeverManager::enableOTASupport(const char *username, const char *passwor
                     const size_t percent = (current * 100) / total;
                     if (percent >= lastReportedPercent + 10 && percent < 100) {
                         lastReportedPercent = (percent / 10) * 10;
-                        SerialMonitor::writeLine("OTA Progress: " + String(lastReportedPercent) + "% (" + String(current) + "/" + String(total) + " bytes)");
+                        Monitor::writeLine("OTA Progress: " + String(lastReportedPercent) + "% (" + String(current) + "/" + String(total) + " bytes)");
                     }
                 }
             }
             if (index + len == total || (total == 0 && len == 0)) {
                 // Last chunk: finalize the update
                 if (Update.end(true)) {
-                    SerialMonitor::writeLine("Update Success: " + String(index + len) + " bytes written (100%)");
+                    Monitor::writeLine("Update Success: " + String(index + len) + " bytes written (100%)");
                 } else {
                     Update.printError(Serial);
                 }
@@ -201,7 +201,7 @@ void WebSeverManager::handleFileRequest(AsyncWebServerRequest *request) {
     String path = request->url();
 
 #ifndef SD_CARD_CONNECTED
-    SerialMonitor::writeLine("🌐 HTTP server request unhandled: " + path);
+    Monitor::writeLine("🌐 HTTP server request unhandled: " + path);
     request->send(404, "text/plain", "File not found");
 #else
     if (path == "/" || path == "") {
@@ -240,7 +240,7 @@ void WebSeverManager::handleFileRequest(AsyncWebServerRequest *request) {
     auto *file = SdCardManager::openFile(filePath, O_READ);
     if (!file) {
         request->send(404, "text/plain", "File not found");
-        SerialMonitor::writeLine("File not found: " + filePath);
+        Monitor::writeLine("File not found: " + filePath);
         return;
     }
 

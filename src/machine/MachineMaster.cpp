@@ -6,7 +6,7 @@
 #include <ArduinoJson.h>
 #include <map>
 
-#include "drivers/universal/SerialMonitor.h"
+#include "drivers/universal/Monitor.h"
 #include "config/build_flags.h"
 
 #include <utility>
@@ -20,7 +20,7 @@ void MachineMaster::setup() {
 
 void MachineMaster::begin() {
     if (!setUp) {
-        SerialMonitor::writeLine("Canning machine has not been set up");
+        Monitor::writeLine("Canning machine has not been set up");
         return;
     }
     controller->init();
@@ -50,7 +50,7 @@ void MachineMaster::processMachineState(const JsonDocument &json) {
         String inputs = json["inputs"];
         JsonDocument inputsDoc;
         if (const DeserializationError err = deserializeJson(inputsDoc, inputs)) {
-            SerialMonitor::writeLine("Error deserializing JSON inputs! -> " + String(err.c_str()));
+            Monitor::writeLine("Error deserializing JSON inputs! -> " + String(err.c_str()));
         } else {
             deserializeInputs(inputsDoc.as<JsonObjectConst>());
         }
@@ -62,7 +62,7 @@ void MachineMaster::processMachineState(const JsonDocument &json) {
         String outputs = json["outputs"];
         JsonDocument outputsDoc;
         if (const DeserializationError err = deserializeJson(outputsDoc, outputs)) {
-            SerialMonitor::writeLine("Error deserializing JSON outputs! -> " + String(err.c_str()));
+            Monitor::writeLine("Error deserializing JSON outputs! -> " + String(err.c_str()));
         } else {
             deserializeOutputs(outputsDoc.as<JsonObjectConst>());
         }
@@ -151,15 +151,15 @@ void MachineMaster::outputsWriteJsonCallback(const JsonDocument &doc) {
         if (doc["Q" + String(i)].is<bool>()) {
             if (!authorized) {
                 if (emergencyStop) {
-                    SerialMonitor::writeLine("Emergency stop is active");
+                    Monitor::writeLine("Emergency stop is active");
                     return;
                 }
                 if (!allowOutputOverride) {
-                    SerialMonitor::writeLine("Output override not enabled");
+                    Monitor::writeLine("Output override not enabled");
                     return;
                 }
                 if (machineRunning && !machinePaused) {
-                    SerialMonitor::writeLine(
+                    Monitor::writeLine(
                         "Output override while the machine is running and not paused is not allowed");
                     return;
                 }
@@ -186,7 +186,7 @@ void MachineMaster::processCommands(const char *command) {
     const auto cmd = String(command);
 
     const String msg = "Command received: " + cmd;
-    SerialMonitor::writeLine(msg);
+    Monitor::writeLine(msg);
 
     if (cmd == "AuthorizeOutputOverride") {
         allowOutputOverride = true;
@@ -236,7 +236,7 @@ void MachineMaster::processCommand(const Commands command) {
                 onResumeCommand();
             break;
         case Commands::Unknown:
-            SerialMonitor::writeLine("Unknown command received");
+            Monitor::writeLine("Unknown command received");
             break;
     }
 }

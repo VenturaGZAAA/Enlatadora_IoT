@@ -8,7 +8,7 @@
 #include "config/build_flags.h"
 #include <ESPmDNS.h>
 #include <ArduinoJson.h>
-#include "drivers/universal/SerialMonitor.h"
+#include "drivers/universal/Monitor.h"
 #include "WifiManager.h"
 
 bool WifiManager::start_ap = false;
@@ -82,13 +82,13 @@ bool WifiManager::startAccessPoint(const String &ap_ssid, const String &ap_passw
     WiFi.softAPConfig(server_ip, gateway, subnet);
 
     if (WiFi.softAP(ap_ssid, ap_password, 1, 0, 4)) {
-        SerialMonitor::writeLine("AP started");
-        SerialMonitor::write("Network name: ");
-        SerialMonitor::writeLine(ap_ssid);
-        SerialMonitor::write("Password: ");
-        SerialMonitor::writeLine(ap_password);
-        SerialMonitor::write("IP address: ");
-        SerialMonitor::writeLine(server_ip.toString());
+        Monitor::writeLine("AP started");
+        Monitor::write("Network name: ");
+        Monitor::writeLine(ap_ssid);
+        Monitor::write("Password: ");
+        Monitor::writeLine(ap_password);
+        Monitor::write("IP address: ");
+        Monitor::writeLine(server_ip.toString());
         setupMdns();
         return true;
     }
@@ -146,7 +146,7 @@ void WifiManager::wifiConfigJsonCallback(const JsonDocument &doc) {
         start_ap = doc["start_ap"];
         prefs.putBool("start_ap", start_ap);
         const auto mode = start_ap ? "AP" : "STA";
-        SerialMonitor::writeLine("WiFi starter mode set to: " + String(mode));
+        Monitor::writeLine("WiFi starter mode set to: " + String(mode));
         if (start_ap) {
             prefs.end();
             return;
@@ -163,13 +163,13 @@ void WifiManager::wifiConfigJsonCallback(const JsonDocument &doc) {
     const char *pass = doc["pass"];
 
     if (strlen(ssid) == 0) {
-        SerialMonitor::writeLine("SSID is empty");
+        Monitor::writeLine("SSID is empty");
         prefs.end();
         return;
     }
 
     prefs.putString("ssid", ssid);
     prefs.putString("pass", pass);
-    SerialMonitor::writeLine("WiFi credentials overwritten");
+    Monitor::writeLine("WiFi credentials overwritten");
     prefs.end();
 }

@@ -17,7 +17,7 @@
 #include "audio/VoiceKeywordModule.h"
 #include "drivers/s3/EvenTheRGBLedHasManagers.h"
 #include "drivers/specific/SdCardManager.h"
-#include "drivers/universal/SerialMonitor.h"
+#include "drivers/universal/Monitor.h"
 #include "drivers/universal/UARTManager.h"
 #include "drivers/universal/WifiManager.h"
 #include "machine/MachineMaster.h"
@@ -46,7 +46,7 @@ void setup() {
     ESP_ERROR_CHECK(err);
 
     // Initialize serial communication and serial command dispatcher.
-    SerialMonitor::init();
+    Monitor::init();
 
 
     Serial.printf("PSRAM found: %d\n", psramFound());
@@ -69,10 +69,10 @@ void setup() {
 
     // --- 2. Serial Interface Callbacks ---
     // Register handlers for incoming JSON payloads and commands received over Serial.
-    SerialMonitor::registerJsonCallback(WifiManager::wifiConfigJsonCallback);
-    SerialMonitor::registerJsonCallback(MachineMaster::outputsWriteJsonCallback);
-    SerialMonitor::registerCallback(MachineMaster::processCommands);
-    SerialMonitor::registerCallback(VoiceKeywordModule::processCommands);
+    Monitor::registerJsonCallback(WifiManager::wifiConfigJsonCallback);
+    Monitor::registerJsonCallback(MachineMaster::outputsWriteJsonCallback);
+    Monitor::registerCallback(MachineMaster::processCommands);
+    Monitor::registerCallback(VoiceKeywordModule::processCommands);
 
     // --- 3. Network Connection (Wi-Fi) ---
     // Connect to configured Wi-Fi network; restart system if configuration/connection fails.
@@ -83,7 +83,7 @@ void setup() {
         ESP.restart();
     }
     if (WifiManager::isFailedToConnect()) {
-        SerialMonitor::writeLine("Failed to connect to WiFi");
+        Monitor::writeLine("Failed to connect to WiFi");
         EvenTheRGBLedHasManagers::setColor(RGBColor::Red(), 500);
     }
     delay(750);
@@ -96,8 +96,8 @@ void setup() {
         JsonDocument doc;
         const DeserializationError error = deserializeJson(doc, payload);
         if (error) {
-            SerialMonitor::write("Error deserializing WiFi config json on MQTT: ");
-            SerialMonitor::writeLine(error.c_str());
+            Monitor::write("Error deserializing WiFi config json on MQTT: ");
+            Monitor::writeLine(error.c_str());
             return;
         }
         WifiManager::wifiConfigJsonCallback(doc);
@@ -120,8 +120,8 @@ void setup() {
         JsonDocument doc;
         const DeserializationError error = deserializeJson(doc, payload);
         if (error) {
-            SerialMonitor::write("Error deserializing outputs write over MQTT: ");
-            SerialMonitor::writeLine(error.c_str());
+            Monitor::write("Error deserializing outputs write over MQTT: ");
+            Monitor::writeLine(error.c_str());
             return;
         }
         MachineMaster::outputsWriteJsonCallback(doc);

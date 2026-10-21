@@ -2,7 +2,7 @@
 // Created by urzu-7 on 8/31/26.
 //
 #include <Arduino.h>
-#include "SerialMonitor.h"
+#include "Monitor.h"
 
 #include <string>
 
@@ -13,7 +13,7 @@
 
 // uint32_t SerialQueue::period = 10;
 
-void SerialMonitor::init(const uint64_t baudRate,const uint32_t _microsecondsDelay) {
+void Monitor::init(const uint64_t baudRate,const uint32_t _microsecondsDelay) {
     Serial.begin(baudRate);
     period = _microsecondsDelay;
     if (!queueMutex) {
@@ -23,7 +23,7 @@ void SerialMonitor::init(const uint64_t baudRate,const uint32_t _microsecondsDel
     initialized = true;
 }
 
-[[noreturn]] void SerialMonitor::loop() {
+[[noreturn]] void Monitor::loop() {
     const TickType_t xFrequency = pdMS_TO_TICKS(period);
     TickType_t xLastWakeTime = xTaskGetTickCount();
     while (true) {
@@ -35,7 +35,7 @@ void SerialMonitor::init(const uint64_t baudRate,const uint32_t _microsecondsDel
     }
 }
 
-void SerialMonitor::run() {
+void Monitor::run() {
 
     // 1. Drain output queue safely under mutex protection
     if (queueMutex && xSemaphoreTake(queueMutex, pdMS_TO_TICKS(20)) == pdTRUE) {
@@ -75,7 +75,7 @@ void SerialMonitor::run() {
     }
 }
 
-void SerialMonitor::write(const std::string &message) {
+void Monitor::write(const std::string &message) {
     if (!queueMutex) return;
     if (!initialized) {
         return;
@@ -89,32 +89,32 @@ void SerialMonitor::write(const std::string &message) {
     }
 }
 
-void SerialMonitor::write(const String &message) {
+void Monitor::write(const String &message) {
     write(std::string(message.c_str()));
 }
 
-void SerialMonitor::write(const char *str) {
+void Monitor::write(const char *str) {
     if (str) {
         write(std::string(str));
     }
 }
 
-void SerialMonitor::writeLine(const std::string &message) {
+void Monitor::writeLine(const std::string &message) {
     write(message + "\r\n");
 }
 
-void SerialMonitor::writeLine(const String &message) {
+void Monitor::writeLine(const String &message) {
     write(message + "\r\n");
 }
 
-void SerialMonitor::writeLine(const char *str) {
+void Monitor::writeLine(const char *str) {
     write(str + String("\r\n"));
 }
 
-void SerialMonitor::registerCallback(const std::function<void(const char *)> &callback) {
+void Monitor::registerCallback(const std::function<void(const char *)> &callback) {
     serialCallbacks.push_back(callback);
 }
 
-void SerialMonitor::registerJsonCallback(const std::function<void(JsonDocument)> &callback) {
+void Monitor::registerJsonCallback(const std::function<void(JsonDocument)> &callback) {
     serialJsonCallbacks.push_back(callback);
 }
