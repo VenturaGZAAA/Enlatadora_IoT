@@ -82,13 +82,13 @@ bool WifiManager::startAccessPoint(const String &ap_ssid, const String &ap_passw
     WiFi.softAPConfig(server_ip, gateway, subnet);
 
     if (WiFi.softAP(ap_ssid, ap_password, 1, 0, 4)) {
-        SerialMonitor::enqueueLine("AP started");
-        SerialMonitor::enqueue("Network name: ");
-        SerialMonitor::enqueueLine(ap_ssid);
-        SerialMonitor::enqueue("Password: ");
-        SerialMonitor::enqueueLine(ap_password);
-        SerialMonitor::enqueue("IP address: ");
-        SerialMonitor::enqueueLine(server_ip.toString());
+        SerialMonitor::writeLine("AP started");
+        SerialMonitor::write("Network name: ");
+        SerialMonitor::writeLine(ap_ssid);
+        SerialMonitor::write("Password: ");
+        SerialMonitor::writeLine(ap_password);
+        SerialMonitor::write("IP address: ");
+        SerialMonitor::writeLine(server_ip.toString());
         setupMdns();
         return true;
     }
@@ -146,7 +146,7 @@ void WifiManager::wifiConfigJsonCallback(const JsonDocument &doc) {
         start_ap = doc["start_ap"];
         prefs.putBool("start_ap", start_ap);
         const auto mode = start_ap ? "AP" : "STA";
-        SerialMonitor::enqueueLine("WiFi starter mode set to: " + String(mode));
+        SerialMonitor::writeLine("WiFi starter mode set to: " + String(mode));
         if (start_ap) {
             prefs.end();
             return;
@@ -163,13 +163,13 @@ void WifiManager::wifiConfigJsonCallback(const JsonDocument &doc) {
     const char *pass = doc["pass"];
 
     if (strlen(ssid) == 0) {
-        SerialMonitor::enqueueLine("SSID is empty");
+        SerialMonitor::writeLine("SSID is empty");
         prefs.end();
         return;
     }
 
     prefs.putString("ssid", ssid);
     prefs.putString("pass", pass);
-    SerialMonitor::enqueueLine("WiFi credentials overwritten");
+    SerialMonitor::writeLine("WiFi credentials overwritten");
     prefs.end();
 }

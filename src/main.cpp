@@ -83,7 +83,7 @@ void setup() {
         ESP.restart();
     }
     if (WifiManager::isFailedToConnect()) {
-        SerialMonitor::enqueueLine("Failed to connect to WiFi");
+        SerialMonitor::writeLine("Failed to connect to WiFi");
         EvenTheRGBLedHasManagers::setColor(RGBColor::Red(), 500);
     }
     delay(750);
@@ -96,8 +96,8 @@ void setup() {
         JsonDocument doc;
         const DeserializationError error = deserializeJson(doc, payload);
         if (error) {
-            SerialMonitor::enqueue("Error deserializing WiFi config json on MQTT: ");
-            SerialMonitor::enqueueLine(error.c_str());
+            SerialMonitor::write("Error deserializing WiFi config json on MQTT: ");
+            SerialMonitor::writeLine(error.c_str());
             return;
         }
         WifiManager::wifiConfigJsonCallback(doc);
@@ -120,8 +120,8 @@ void setup() {
         JsonDocument doc;
         const DeserializationError error = deserializeJson(doc, payload);
         if (error) {
-            SerialMonitor::enqueue("Error deserializing outputs write over MQTT: ");
-            SerialMonitor::enqueueLine(error.c_str());
+            SerialMonitor::write("Error deserializing outputs write over MQTT: ");
+            SerialMonitor::writeLine(error.c_str());
             return;
         }
         MachineMaster::outputsWriteJsonCallback(doc);

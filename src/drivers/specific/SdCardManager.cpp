@@ -50,16 +50,16 @@ void SdCardManager::init(const String &_rootPath) {
     LockGuard lock(pdMS_TO_TICKS(5000));
     rootPath = _rootPath;
 
-    SerialMonitor::enqueueLine("📀 Initializing SD card...");
+    SerialMonitor::writeLine("📀 Initializing SD card...");
     SPI.begin(SD_SCK, SD_MISO, SD_MOSI, SD_CS);
 
     if (const SdSpiConfig cfg(SD_CS, SHARED_SPI, SD_SCK_MHZ(4), &SPI); !sd.begin(cfg)) {
-        SerialMonitor::enqueueLine(" ❌ Card Mount Failed!");
+        SerialMonitor::writeLine(" ❌ Card Mount Failed!");
         SPI.end();
         mounted = false;
     } else {
         mounted = true;
-        SerialMonitor::enqueueLine("✅ SD card mounted");
+        SerialMonitor::writeLine("✅ SD card mounted");
     }
 }
 

@@ -20,7 +20,7 @@ void MachineMaster::setup() {
 
 void MachineMaster::begin() {
     if (!setUp) {
-        SerialMonitor::enqueueLine("Canning machine has not been set up");
+        SerialMonitor::writeLine("Canning machine has not been set up");
         return;
     }
     controller->init();
@@ -50,7 +50,7 @@ void MachineMaster::processMachineState(const JsonDocument &json) {
         String inputs = json["inputs"];
         JsonDocument inputsDoc;
         if (const DeserializationError err = deserializeJson(inputsDoc, inputs)) {
-            SerialMonitor::enqueueLine("Error deserializing JSON inputs! -> " + String(err.c_str()));
+            SerialMonitor::writeLine("Error deserializing JSON inputs! -> " + String(err.c_str()));
         } else {
             deserializeInputs(inputsDoc.as<JsonObjectConst>());
         }
@@ -62,7 +62,7 @@ void MachineMaster::processMachineState(const JsonDocument &json) {
         String outputs = json["outputs"];
         JsonDocument outputsDoc;
         if (const DeserializationError err = deserializeJson(outputsDoc, outputs)) {
-            SerialMonitor::enqueueLine("Error deserializing JSON outputs! -> " + String(err.c_str()));
+            SerialMonitor::writeLine("Error deserializing JSON outputs! -> " + String(err.c_str()));
         } else {
             deserializeOutputs(outputsDoc.as<JsonObjectConst>());
         }
@@ -151,15 +151,15 @@ void MachineMaster::outputsWriteJsonCallback(const JsonDocument &doc) {
         if (doc["Q" + String(i)].is<bool>()) {
             if (!authorized) {
                 if (emergencyStop) {
-                    SerialMonitor::enqueueLine("Emergency stop is active");
+                    SerialMonitor::writeLine("Emergency stop is active");
                     return;
                 }
                 if (!allowOutputOverride) {
-                    SerialMonitor::enqueueLine("Output override not enabled");
+                    SerialMonitor::writeLine("Output override not enabled");
                     return;
                 }
                 if (machineRunning && !machinePaused) {
-                    SerialMonitor::enqueueLine(
+                    SerialMonitor::writeLine(
                         "Output override while the machine is running and not paused is not allowed");
                     return;
                 }
@@ -175,7 +175,7 @@ void MachineMaster::outputsWriteJsonCallback(const JsonDocument &doc) {
         }
         String msg;
         serializeJson(json, msg);
-        controller->enqueueLine(msg);
+        controller->writeLine(msg);
     }
 }
 
@@ -186,7 +186,7 @@ void MachineMaster::processCommands(const char *command) {
     const auto cmd = String(command);
 
     const String msg = "Command received: " + cmd;
-    SerialMonitor::enqueueLine(msg);
+    SerialMonitor::writeLine(msg);
 
     if (cmd == "AuthorizeOutputOverride") {
         allowOutputOverride = true;
@@ -216,27 +216,27 @@ MachineMaster::Commands MachineMaster::commandFromString(const String &str) {
 void MachineMaster::processCommand(const Commands command) {
     switch (command) {
         case Commands::Stop:
-            controller->enqueueLine("Stop");
+            controller->writeLine("Stop");
             if (onStopCommand)
                 onStopCommand();
             break;
         case Commands::Pause:
-            controller->enqueueLine("Pause");
+            controller->writeLine("Pause");
             if (onPauseCommand)
                 onPauseCommand();
             break;
         case Commands::Start:
-            controller->enqueueLine("Start");
+            controller->writeLine("Start");
             if (onStartCommand)
                 onStartCommand();
             break;
         case Commands::Resume:
-            controller->enqueueLine("Resume");
+            controller->writeLine("Resume");
             if (onResumeCommand)
                 onResumeCommand();
             break;
         case Commands::Unknown:
-            SerialMonitor::enqueueLine("Unknown command received");
+            SerialMonitor::writeLine("Unknown command received");
             break;
     }
 }

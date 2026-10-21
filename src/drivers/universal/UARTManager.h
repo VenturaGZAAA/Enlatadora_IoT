@@ -50,17 +50,17 @@ public:
 
     void init();
 
-    void enqueue(const std::string &message);
+    void write(const std::string &message);
 
-    void enqueueLine(const std::string &message);
+    void writeLine(const std::string &message);
 
-    void enqueue(const String &message);
+    void write(const String &message);
 
-    void enqueueLine(const String &message);
+    void writeLine(const String &message);
 
-    void enqueue(const char *str);
+    void write(const char *str);
 
-    void enqueueLine(const char *str);
+    void writeLine(const char *str);
 
     void registerCallback(const std::function<void(const char *)> &callback);
 

@@ -75,7 +75,7 @@ void SerialMonitor::run() {
     }
 }
 
-void SerialMonitor::enqueue(const std::string &message) {
+void SerialMonitor::write(const std::string &message) {
     if (!queueMutex) return;
     if (!initialized) {
         return;
@@ -89,26 +89,26 @@ void SerialMonitor::enqueue(const std::string &message) {
     }
 }
 
-void SerialMonitor::enqueue(const String &message) {
-    enqueue(std::string(message.c_str()));
+void SerialMonitor::write(const String &message) {
+    write(std::string(message.c_str()));
 }
 
-void SerialMonitor::enqueue(const char *str) {
+void SerialMonitor::write(const char *str) {
     if (str) {
-        enqueue(std::string(str));
+        write(std::string(str));
     }
 }
 
-void SerialMonitor::enqueueLine(const std::string &message) {
-    enqueue(message + "\r\n");
+void SerialMonitor::writeLine(const std::string &message) {
+    write(message + "\r\n");
 }
 
-void SerialMonitor::enqueueLine(const String &message) {
-    enqueue(message + "\r\n");
+void SerialMonitor::writeLine(const String &message) {
+    write(message + "\r\n");
 }
 
-void SerialMonitor::enqueueLine(const char *str) {
-    enqueue(str + String("\r\n"));
+void SerialMonitor::writeLine(const char *str) {
+    write(str + String("\r\n"));
 }
 
 void SerialMonitor::registerCallback(const std::function<void(const char *)> &callback) {

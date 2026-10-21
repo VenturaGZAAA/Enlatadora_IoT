@@ -29,17 +29,17 @@ class SerialMonitor {
 public:
     SerialMonitor() = delete;
 
-    static void enqueue(const std::string &message);
+    static void write(const std::string &message);
 
-    static void enqueueLine(const std::string &message);
+    static void writeLine(const std::string &message);
 
-    static void enqueue(const String &message);
+    static void write(const String &message);
 
-    static void enqueueLine(const String &message);
+    static void writeLine(const String &message);
 
-    static void enqueue(const char *str);
+    static void write(const char *str);
 
-    static void enqueueLine(const char *str);
+    static void writeLine(const char *str);
 
     static void registerCallback(const std::function<void(const char *)> &callback);
 

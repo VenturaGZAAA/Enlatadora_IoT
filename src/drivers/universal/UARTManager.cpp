@@ -70,7 +70,7 @@ void UARTManager::run() {
 }
 
 
-void UARTManager::enqueue(const std::string &message) {
+void UARTManager::write(const std::string &message) {
     if (!queueMutex) return;
     if (xSemaphoreTake(queueMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
         if (serialQueue.size() < 100) {
@@ -81,26 +81,26 @@ void UARTManager::enqueue(const std::string &message) {
     }
 }
 
-void UARTManager::enqueue(const String &message) {
-    enqueue(std::string(message.c_str()));
+void UARTManager::write(const String &message) {
+    write(std::string(message.c_str()));
 }
 
-void UARTManager::enqueue(const char *str) {
+void UARTManager::write(const char *str) {
     if (str) {
-        enqueue(std::string(str));
+        write(std::string(str));
     }
 }
 
-void UARTManager::enqueueLine(const std::string &message) {
-    enqueue(message + "\r\n");
+void UARTManager::writeLine(const std::string &message) {
+    write(message + "\r\n");
 }
 
-void UARTManager::enqueueLine(const String &message) {
-    enqueue(message + "\r\n");
+void UARTManager::writeLine(const String &message) {
+    write(message + "\r\n");
 }
 
-void UARTManager::enqueueLine(const char *str) {
-    enqueue(str + String("\r\n"));
+void UARTManager::writeLine(const char *str) {
+    write(str + String("\r\n"));
 }
 
 void UARTManager::registerCallback(const std::function<void(const char *)> &callback) {
