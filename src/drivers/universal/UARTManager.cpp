@@ -10,27 +10,77 @@ UARTManager::UARTManager(HardwareSerial &uartPort, const int8_t rxPin, const int
     : uartPort(uartPort), rxPin(rxPin), txPin(txPin), baudRate(baudRate), period(period), bufferLength(bufferLength) {
 }
 
+UARTManager::~UARTManager() {
+    stop();
+    if (queueMutex) {
+        vSemaphoreDelete(queueMutex);
+        queueMutex = nullptr;
+    }
+}
+
 void UARTManager::init() {
+    if (running) {
+        return;
+    }
     uartPort.begin(baudRate, SERIAL_8N1, rxPin, txPin);
     uartPort.setTimeout(1000);
     if (!queueMutex) {
         queueMutex = xSemaphoreCreateMutex();
     }
+    running = true;
     if (!task) {
         xTaskCreate(taskEntry, "SerialQueue", 8192, this, 1, &task);
     }
 }
 
+void UARTManager::init(const uint32_t newBaudRate, const uint32_t newPeriod) {
+    this->baudRate = newBaudRate;
+    this->period = newPeriod;
+    init();
+}
+
+void UARTManager::stop() {
+    if (!running && !task) {
+        return;
+    }
+    running = false;
+
+    if (task != nullptr) {
+        if (xTaskGetCurrentTaskHandle() != task) {
+            for (int i = 0; i < 20 && task != nullptr; ++i) {
+                vTaskDelay(pdMS_TO_TICKS(10));
+            }
+            if (task != nullptr) {
+                TaskHandle_t taskToDelete = task;
+                task = nullptr;
+                vTaskDelete(taskToDelete);
+            }
+        }
+    }
+
+    if (queueMutex && xSemaphoreTake(queueMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
+        while (!serialQueue.empty()) {
+            uartPort.print(serialQueue.front().c_str());
+            serialQueue.pop();
+        }
+        xSemaphoreGive(queueMutex);
+    }
+    uartPort.flush();
+    uartPort.end();
+}
+
 void UARTManager::taskEntry(void *pv) {
-    static_cast<UARTManager *>(pv)->loop();
+    auto *manager = static_cast<UARTManager *>(pv);
+    manager->loop();
+    manager->task = nullptr;
     vTaskDelete(nullptr);
 }
 
-[[noreturn]] void UARTManager::loop() {
+void UARTManager::loop() {
     const TickType_t xFrequency = pdMS_TO_TICKS(period); // 20 ms period (50 Hz)
     TickType_t xLastWakeTime = xTaskGetTickCount();
 
-    while (true) {
+    while (running) {
         run();
         vTaskDelayUntil(&xLastWakeTime, xFrequency);
     }
@@ -71,7 +121,7 @@ void UARTManager::run() {
 
 
 void UARTManager::write(const std::string &message) {
-    if (!queueMutex) return;
+    if (!running || !queueMutex) return;
     if (xSemaphoreTake(queueMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
         if (serialQueue.size() < 100) {
             // Limit queue to prevent unbounded RAM usage
