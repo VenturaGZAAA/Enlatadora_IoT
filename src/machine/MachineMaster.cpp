@@ -112,7 +112,7 @@ String MachineMaster::getStage() {
     String result;
     result.reserve(40);
     result += String(stageIndex);
-    result += "-";
+    result += " - ";
     result += stageName;
     return result;
 }
@@ -194,9 +194,9 @@ void MachineMaster::outputsWriteJsonCallback(const JsonDocument &doc) {
 void MachineMaster::processCommands(const char *command) {
     if (taskHandle == nullptr) return;
 
-    const auto cmd = String(command);
+    auto cmd = String(command);
 
-    const String msg = "Command received: " + cmd;
+    String msg = "Command received: " + cmd;
     Monitor::writeLine(msg);
 
     if (cmd == "ForceAuthorization") {
@@ -205,7 +205,11 @@ void MachineMaster::processCommands(const char *command) {
         allowOutputOverride = true;
     } else if (cmd == "DisableOutputOverride") {
         allowOutputOverride = false;
-    } else if (std::find(allCom.begin(), allCom.end(), cmd) != allCom.end()) {
+        return;
+    }
+    msg.toLowerCase();
+    cmd = msg.c_str();
+    if (std::find(allCom.begin(), allCom.end(), cmd) != allCom.end()) {
         processCommand(commandFromString(cmd));
     }
 }
