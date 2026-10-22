@@ -84,11 +84,13 @@ class MachineMaster {
                           BaseType_t core = 1);
 
     static void processMachineState(const JsonDocument &json);
+
     static void deserializeInputs(JsonObjectConst json);
+
     static void deserializeOutputs(JsonObjectConst json);
 
     static void processCommand(Commands command);
-    
+
     static inline std::function<void()> onStopCommand = nullptr;
     static inline std::function<void()> onStartCommand = nullptr;
     static inline std::function<void()> onPauseCommand = nullptr;
@@ -97,10 +99,10 @@ class MachineMaster {
 public:
     MachineMaster() = delete;
 
-    static const inline std::vector<String> stopCom = { "stop" ,"disable","detener","desactivar"};
-    static const inline std::vector<String> startCom = { "start" ,"enable","inicia","arranca"};
-    static const inline std::vector<String> pauseCom = { "pause" ,"emergency","emergencia","pausa"};
-    static const inline std::vector<String> resumeCom = { "resume" ,"continue","continua","reanuda"};
+    static const inline std::vector<String> stopCom = {"stop", "disable", "detener", "desactivar"};
+    static const inline std::vector<String> startCom = {"start", "enable", "inicia", "arranca"};
+    static const inline std::vector<String> pauseCom = {"pause", "emergency", "emergencia", "pausa"};
+    static const inline std::vector<String> resumeCom = {"resume", "continue", "continua", "reanuda"};
     static const inline std::vector<String> allCom = [] {
         std::vector v(stopCom);
         v.insert(v.end(), startCom.begin(), startCom.end());
@@ -119,8 +121,9 @@ public:
     static String getJsonInputs();
 
     static String getStage();
-    static bool isRunning() {return machineRunning;}
-    static bool isPaused() {return machinePaused || emergencyStop;}
+
+    static bool isRunning() { return machineRunning; }
+    static bool isPaused() { return machinePaused || emergencyStop; }
 
     static String getSerializedState();
 
@@ -129,9 +132,11 @@ public:
     static void processCommands(const char *command);
 
     static void setOnStopCallback(std::function<void()> callback);
-    static void setOnStartCallback(std::function<void()> callback);
-    static void setOnPauseCallback(std::function<void()> callback);
-    static void setOnResumeCallback(std::function<void()> callback);
 
+    static void setOnStartCallback(std::function<void()> callback);
+
+    static void setOnPauseCallback(std::function<void()> callback);
+
+    static void setOnResumeCallback(std::function<void()> callback);
 };
 #endif //ENLATADORA_IOT_CANNINGMACHINE_H

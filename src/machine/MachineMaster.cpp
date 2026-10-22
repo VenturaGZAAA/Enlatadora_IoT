@@ -196,7 +196,7 @@ void MachineMaster::processCommands(const char *command) {
 
     auto cmd = String(command);
 
-    String msg = "Command received: " + cmd;
+    const String msg = "Command received: " + cmd;
     Monitor::writeLine(msg);
 
     if (cmd == "ForceAuthorization") {
@@ -207,8 +207,7 @@ void MachineMaster::processCommands(const char *command) {
         allowOutputOverride = false;
         return;
     }
-    msg.toLowerCase();
-    cmd = msg.c_str();
+    cmd.toLowerCase();
     if (std::find(allCom.begin(), allCom.end(), cmd) != allCom.end()) {
         processCommand(commandFromString(cmd));
     }
