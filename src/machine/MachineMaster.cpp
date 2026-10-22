@@ -196,8 +196,7 @@ void MachineMaster::processCommands(const char *command) {
 
     auto cmd = String(command);
 
-    const String msg = "Command received: " + cmd;
-    Monitor::writeLine(msg);
+    Monitor::writeLine("Command received: " + cmd);
 
     if (cmd == "ForceAuthorization") {
         controller->writeLine("ForceAuthorization");
@@ -208,6 +207,7 @@ void MachineMaster::processCommands(const char *command) {
     } else {
         cmd.toLowerCase();
         if (std::find(allCom.begin(), allCom.end(), cmd) != allCom.end()) {
+            Monitor::writeLine("Command processed: " + cmd);
             processCommand(commandFromString(cmd));
         }
     }
