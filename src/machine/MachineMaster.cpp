@@ -205,11 +205,11 @@ void MachineMaster::processCommands(const char *command) {
         allowOutputOverride = true;
     } else if (cmd == "DisableOutputOverride") {
         allowOutputOverride = false;
-        return;
-    }
-    cmd.toLowerCase();
-    if (std::find(allCom.begin(), allCom.end(), cmd) != allCom.end()) {
-        processCommand(commandFromString(cmd));
+    } else {
+        cmd.toLowerCase();
+        if (std::find(allCom.begin(), allCom.end(), cmd) != allCom.end()) {
+            processCommand(commandFromString(cmd));
+        }
     }
 }
 
