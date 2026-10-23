@@ -71,8 +71,12 @@ class VoiceKeywordModule {
 
     static inline std::function<void(String)> onTranscriptionReceived = nullptr;
     static bool initI2S();
+    static inline String groqApiKey = "";
 
 public:
+    /// Call this before Init
+    static void setGroqApiKey(const String &apiKey);
+
     static void init();
 
     static void begin();

@@ -15,6 +15,7 @@
 #if __has_include("config/build_flags.h")
 #include "config/build_flags.h"
 #endif
+#include "config/secrets.h"
 #include "audio/VoiceKeywordModule.h"
 #include "drivers/s3/EvenTheRGBLedHasManagers.h"
 #include "drivers/specific/SdCardManager.h"
@@ -63,6 +64,8 @@ void setup() {
     SdCardManager::init("/CanningMachine");
 
     EvenTheRGBLedHasManagers::init();
+
+    VoiceKeywordModule::setGroqApiKey(GROQ_API_KEY);
     VoiceKeywordModule::init();
 
     delay(100);
@@ -205,13 +208,10 @@ void setup() {
 
     // Launch asynchronous state machine tasks for canning operations.
     MachineMaster::begin();
-
-
 }
 
 // #define RGB_TEST
 void loop() {
-
 #ifndef RGB_TEST
     vTaskDelay(pdMS_TO_TICKS(1000));
 #else
@@ -222,13 +222,13 @@ void loop() {
     const RGBColor color2 = RGBColor::white().withAlpha(alpha);
     constexpr uint32_t delay2 = 500;
 
-    EvenTheRGBLedHasManagers::setColor(color1,delay1);
+    EvenTheRGBLedHasManagers::setColor(color1, delay1);
     vTaskDelay(pdMS_TO_TICKS(delay1));
-    EvenTheRGBLedHasManagers::setColor(RGBColor(),100);
+    EvenTheRGBLedHasManagers::setColor(RGBColor(), 100);
     vTaskDelay(pdMS_TO_TICKS(100));
-    EvenTheRGBLedHasManagers::setColor(color2,delay2);
+    EvenTheRGBLedHasManagers::setColor(color2, delay2);
     vTaskDelay(pdMS_TO_TICKS(delay2));
-    EvenTheRGBLedHasManagers::setColor(RGBColor(),100);
+    EvenTheRGBLedHasManagers::setColor(RGBColor(), 100);
     vTaskDelay(pdMS_TO_TICKS(100));
 #endif
 }

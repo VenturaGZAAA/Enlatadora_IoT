@@ -3,8 +3,10 @@
 //
 
 #include "VoiceKeywordModule.h"
-#include "config/secrets.h"
+
+#if __has_include("config/build_flags.h")
 #include "config/build_flags.h"
+#endif
 #include "drivers/universal/Monitor.h"
 #include "drivers/universal/WifiManager.h"
 #include <utility>
@@ -119,6 +121,10 @@ bool VoiceKeywordModule::initI2S() {
     return true;
 }
 
+void VoiceKeywordModule::setGroqApiKey(const String &apiKey) {
+    groqApiKey = apiKey;
+}
+
 // ─────────────────────────────────────────────────────────────
 // Init — call from setup() before WifiManager::setup()
 // ─────────────────────────────────────────────────────────────
@@ -155,12 +161,15 @@ void VoiceKeywordModule::setOnStopped(std::function<void()> callback) {
 // Start tasks — call from setup() after WifiManager::setup()
 // ─────────────────────────────────────────────────────────────
 void VoiceKeywordModule::begin() {
-
 #if defined(DISABLE_AUDIO)
     Monitor::writeLine("[Voice] Audio disabled");
     return;
 #endif
 
+    if (groqApiKey.length() == 0) {
+        Monitor::writeLine("[Voice] Groq API key not set");
+        return;
+    }
 
     if (failedToInitialize) {
         Monitor::writeLine("[Voice] Module failed to initialize");
@@ -214,7 +223,6 @@ void VoiceKeywordModule::processCommands(const char *command) {
 // Stop tasks — safely terminate capture/upload and release queue buffers
 // ─────────────────────────────────────────────────────────────
 void VoiceKeywordModule::stop() {
-
 #if defined(DISABLE_AUDIO)
     Monitor::writeLine("[Voice] Audio disabled - can't stop");
     return;
@@ -319,7 +327,7 @@ void VoiceKeywordModule::captureTask(void *param) {
             }
             rms = static_cast<int32_t>(sqrt(static_cast<double>(sumSquares) / totalSamples));
             Monitor::writeLine("[Voice] Chunk captured (" + String(totalSamples) + " samples) | Peak: [" +
-                                       String(minSample) + ".." + String(maxSample) + "] | RMS: " + String(rms));
+                               String(minSample) + ".." + String(maxSample) + "] | RMS: " + String(rms));
         }
 
         // Avoid uploading silent chunks: save network bandwidth, CPU time, and API usage
@@ -405,7 +413,7 @@ void VoiceKeywordModule::uploadTask(void *param) {
 
         if (HTTPClient http; http.begin(client, GROQ_API_URL)) {
             http.setTimeout(30000); // 30 s max for API response
-            http.addHeader("Authorization", String("Bearer ") + GROQ_API_KEY);
+            http.addHeader("Authorization", String("Bearer ") + groqApiKey);
             http.addHeader("Content-Type", "multipart/form-data; boundary=" + boundary);
             http.addHeader("language", "en");
 
@@ -505,7 +513,9 @@ void VoiceKeywordModule::createWavHeader(
 // ─────────────────────────────────────────────────────────────
 void VoiceKeywordModule::registerKeyword(
     std::vector<String> keywords, std::function<void(String)> callback, const bool stopOnFirstMatch) {
-    keywordSets.push_back({.keywords = std::move(keywords), .callback = std::move(callback), .stopOnFirstMatch = stopOnFirstMatch});
+    keywordSets.push_back({
+        .keywords = std::move(keywords), .callback = std::move(callback), .stopOnFirstMatch = stopOnFirstMatch
+    });
 }
 
 void VoiceKeywordModule::setOnTranscriptionReceived(std::function<void(String)> callback) {
@@ -518,17 +528,15 @@ void VoiceKeywordModule::processTranscript(const String &transcript) {
     lower.toLowerCase();
 
     for (auto &[keywords, callback,stopOnFirstMatch]: keywordSets) {
-        for (auto &keyword : keywords) {
-
+        for (auto &keyword: keywords) {
             String kwLower = keyword;
             kwLower.toLowerCase();
             if (lower.indexOf(kwLower) >= 0) {
                 Monitor::writeLine("[Voice] Keyword matched: " +
-                                           keyword);
+                                   keyword);
                 if (callback) callback(keyword);
                 if (stopOnFirstMatch) break;
             }
         }
-
     }
 }
