@@ -3,7 +3,9 @@
 #ifdef SD_CARD_CONNECTED
 #include "drivers/specific/SdCardManager.h"
 #endif
+#if __has_include("config/build_flags.h")
 #include "config/build_flags.h"
+#endif
 #include "drivers/universal/WifiManager.h"
 #include <Update.h>
 #include <utility>

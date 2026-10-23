@@ -12,8 +12,9 @@
 #include <WiFi.h>
 #include <PicoMQTT.h>
 #include <nvs_flash.h>
-
+#if __has_include("config/build_flags.h")
 #include "config/build_flags.h"
+#endif
 #include "audio/VoiceKeywordModule.h"
 #include "drivers/s3/EvenTheRGBLedHasManagers.h"
 #include "drivers/specific/SdCardManager.h"

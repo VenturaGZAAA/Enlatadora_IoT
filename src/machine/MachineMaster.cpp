@@ -7,8 +7,9 @@
 #include <map>
 
 #include "drivers/universal/Monitor.h"
+#if __has_include("config/build_flags.h")
 #include "config/build_flags.h"
-
+#endif
 #include <utility>
 
 void MachineMaster::setup() {

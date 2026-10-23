@@ -4,8 +4,12 @@
 
 #include <Arduino.h>
 #include <WiFi.h>
+#if __has_include("wifi_secrets.h")
 #include "wifi_secrets.h"
+#endif
+#if __has_include("config/build_flags.h")
 #include "config/build_flags.h"
+#endif
 #include <ESPmDNS.h>
 #include <ArduinoJson.h>
 #include "drivers/universal/Monitor.h"
