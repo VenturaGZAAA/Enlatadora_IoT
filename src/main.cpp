@@ -20,7 +20,7 @@
 #include "drivers/s3/EvenTheRGBLedHasManagers.h"
 #include "drivers/specific/SdCardManager.h"
 #include "drivers/universal/Monitor.h"
-#include "drivers/universal/UARTManager.h"
+#include "drivers/universal/SerialManager.h"
 #include "drivers/universal/WifiManager.h"
 #include "machine/MachineMaster.h"
 #include "network/MqttManager.h"
@@ -47,7 +47,11 @@ void setup() {
     }
     ESP_ERROR_CHECK(err);
 
-    // Initialize serial communication and serial command dispatcher.
+    Monitor::useSerialManager(SerialManager::create(Serial,-1,-1,115200,20));
+    /* Other debug interfaces for Monitor might be attached here in the futura.
+     *
+     *
+     */
     Monitor::init();
 
 

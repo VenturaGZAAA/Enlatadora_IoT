@@ -13,7 +13,7 @@
 #include <utility>
 
 void MachineMaster::setup() {
-    controller = UARTManager::create(Serial1, 18, 17);
+    controller = SerialManager::create(Serial1, 18, 17);
     controller->registerJsonCallback(processMachineState);
     setUp = true;
 }

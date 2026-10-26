@@ -11,7 +11,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <ArduinoJson.h>
-#include <drivers/universal/UARTManager.h>
+#include <drivers/universal/SerialManager.h>
 
 
 class MachineMaster {
@@ -54,7 +54,7 @@ class MachineMaster {
 
     static Commands commandFromString(const String &str);
 
-    static inline auto controller = UARTManager::reserve();
+    static inline auto controller = SerialManager::reserve();
 
     static constexpr int NUM_INPUTS = 8;
     static constexpr int NUM_OUTPUTS = 19;

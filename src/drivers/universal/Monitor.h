@@ -8,11 +8,10 @@
 #include <string>
 #include <functional>
 #include <ArduinoJson.h>
-#include "UARTManager.h"
+#include "SerialManager.h"
 
 class Monitor {
-    static inline  auto instance = UARTManager::reserve();
-
+    static inline  auto serialInstance = SerialManager::reserve();
 
 public:
     Monitor() = delete;
@@ -33,7 +32,9 @@ public:
 
     static void registerJsonCallback(const std::function<void(JsonDocument)> &callback);
 
-    static void init(uint64_t baudRate = 115200, uint32_t _microsecondsDelay = 25);
+    static void useSerialManager(std::unique_ptr<SerialManager> serialManager);
+
+    static void init();
 
     static void stop();
 

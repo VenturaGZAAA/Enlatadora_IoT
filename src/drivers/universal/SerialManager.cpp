@@ -2,15 +2,15 @@
 // Created by urzu-7 on 10/18/26.
 //
 
-#include "UARTManager.h"
+#include "SerialManager.h"
 
 
-UARTManager::UARTManager(HardwareSerial &uartPort, const int8_t rxPin, const int8_t txPin,
-                         const uint32_t baudRate, const uint32_t period, const uint32_t bufferLength)
+SerialManager::SerialManager(HardwareSerial &uartPort, const int8_t rxPin, const int8_t txPin,
+                             const uint32_t baudRate, const uint32_t period, const uint32_t bufferLength)
     : uartPort(uartPort), rxPin(rxPin), txPin(txPin), baudRate(baudRate), period(period), bufferLength(bufferLength) {
 }
 
-UARTManager::~UARTManager() {
+SerialManager::~SerialManager() {
     stop();
     if (queueMutex) {
         vSemaphoreDelete(queueMutex);
@@ -18,7 +18,7 @@ UARTManager::~UARTManager() {
     }
 }
 
-void UARTManager::init() {
+void SerialManager::init() {
     if (running) {
         return;
     }
@@ -33,13 +33,13 @@ void UARTManager::init() {
     }
 }
 
-void UARTManager::init(const uint32_t newBaudRate, const uint32_t newPeriod) {
+void SerialManager::init(const uint32_t newBaudRate, const uint32_t newPeriod) {
     this->baudRate = newBaudRate;
     this->period = newPeriod;
     init();
 }
 
-void UARTManager::stop() {
+void SerialManager::stop() {
     if (!running && !task) {
         return;
     }
@@ -69,14 +69,14 @@ void UARTManager::stop() {
     uartPort.end();
 }
 
-void UARTManager::taskEntry(void *pv) {
-    auto *manager = static_cast<UARTManager *>(pv);
+void SerialManager::taskEntry(void *pv) {
+    auto *manager = static_cast<SerialManager *>(pv);
     manager->loop();
     manager->task = nullptr;
     vTaskDelete(nullptr);
 }
 
-void UARTManager::loop() {
+void SerialManager::loop() {
     const TickType_t xFrequency = pdMS_TO_TICKS(period); // 20 ms period (50 Hz)
     TickType_t xLastWakeTime = xTaskGetTickCount();
 
@@ -86,7 +86,7 @@ void UARTManager::loop() {
     }
 }
 
-void UARTManager::run() {
+void SerialManager::run() {
     if (queueMutex && xSemaphoreTake(queueMutex, pdMS_TO_TICKS(20)) == pdTRUE) {
         while (!serialQueue.empty()) {
             uartPort.print(serialQueue.front().c_str());
@@ -120,7 +120,7 @@ void UARTManager::run() {
 }
 
 
-void UARTManager::write(const std::string &message) {
+void SerialManager::write(const std::string &message) {
     if (!running || !queueMutex) return;
     if (xSemaphoreTake(queueMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
         if (serialQueue.size() < 100) {
@@ -131,32 +131,32 @@ void UARTManager::write(const std::string &message) {
     }
 }
 
-void UARTManager::write(const String &message) {
+void SerialManager::write(const String &message) {
     write(std::string(message.c_str()));
 }
 
-void UARTManager::write(const char *str) {
+void SerialManager::write(const char *str) {
     if (str) {
         write(std::string(str));
     }
 }
 
-void UARTManager::writeLine(const std::string &message) {
+void SerialManager::writeLine(const std::string &message) {
     write(message + "\r\n");
 }
 
-void UARTManager::writeLine(const String &message) {
+void SerialManager::writeLine(const String &message) {
     write(message + "\r\n");
 }
 
-void UARTManager::writeLine(const char *str) {
+void SerialManager::writeLine(const char *str) {
     write(str + String("\r\n"));
 }
 
-void UARTManager::registerCallback(const std::function<void(const char *)> &callback) {
+void SerialManager::registerCallback(const std::function<void(const char *)> &callback) {
     serialCallbacks.push_back(callback);
 }
 
-void UARTManager::registerJsonCallback(const std::function<void(JsonDocument)> &callback) {
+void SerialManager::registerJsonCallback(const std::function<void(JsonDocument)> &callback) {
     serialJsonCallbacks.push_back(callback);
 }
