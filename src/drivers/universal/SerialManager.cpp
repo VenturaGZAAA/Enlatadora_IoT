@@ -7,7 +7,14 @@
 
 SerialManager::SerialManager(HardwareSerial &uartPort, const int8_t rxPin, const int8_t txPin,
                              const uint32_t baudRate, const uint32_t period, const uint32_t bufferLength)
-    : uartPort(uartPort), rxPin(rxPin), txPin(txPin), baudRate(baudRate), period(period), bufferLength(bufferLength) {
+    : serialType(SerialType::HARDWARE_SERIAL), hwSerial(&uartPort), cdcSerial(nullptr), stream(&uartPort),
+      rxPin(rxPin), txPin(txPin), baudRate(baudRate), period(period), bufferLength(bufferLength) {
+}
+
+SerialManager::SerialManager(HWCDC &serial, const uint32_t baudRate,
+                             const uint32_t period, const uint32_t bufferLength)
+    : serialType(SerialType::HW_CDC), hwSerial(nullptr), cdcSerial(&serial), stream(&serial),
+      rxPin(-1), txPin(-1), baudRate(baudRate), period(period), bufferLength(bufferLength) {
 }
 
 SerialManager::~SerialManager() {
@@ -22,8 +29,13 @@ void SerialManager::init() {
     if (running) {
         return;
     }
-    uartPort.begin(baudRate, SERIAL_8N1, rxPin, txPin);
-    uartPort.setTimeout(1000);
+    if (serialType == SerialType::HARDWARE_SERIAL && hwSerial) {
+        hwSerial->begin(baudRate, SERIAL_8N1, rxPin, txPin);
+        hwSerial->setTimeout(1000);
+    } else if (serialType == SerialType::HW_CDC && cdcSerial) {
+        cdcSerial->begin(baudRate);
+        cdcSerial->setTimeout(1000);
+    }
     if (!queueMutex) {
         queueMutex = xSemaphoreCreateMutex();
     }
@@ -60,13 +72,20 @@ void SerialManager::stop() {
 
     if (queueMutex && xSemaphoreTake(queueMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
         while (!serialQueue.empty()) {
-            uartPort.print(serialQueue.front().c_str());
+            if (stream) {
+                stream->print(serialQueue.front().c_str());
+            }
             serialQueue.pop();
         }
         xSemaphoreGive(queueMutex);
     }
-    uartPort.flush();
-    uartPort.end();
+    if (serialType == SerialType::HARDWARE_SERIAL && hwSerial) {
+        hwSerial->flush();
+        hwSerial->end();
+    } else if (serialType == SerialType::HW_CDC && cdcSerial) {
+        cdcSerial->flush();
+        cdcSerial->end();
+    }
 }
 
 void SerialManager::taskEntry(void *pv) {
@@ -89,31 +108,35 @@ void SerialManager::loop() {
 void SerialManager::run() {
     if (queueMutex && xSemaphoreTake(queueMutex, pdMS_TO_TICKS(20)) == pdTRUE) {
         while (!serialQueue.empty()) {
-            uartPort.print(serialQueue.front().c_str());
+            if (stream) {
+                stream->print(serialQueue.front().c_str());
+            }
             serialQueue.pop();
         }
         xSemaphoreGive(queueMutex);
     }
 
-    while (uartPort.available() > 0) {
-        if (const char c = static_cast<char>(uartPort.read()); c == '\r' || c == '\n') {
-            rxBuffer.trim();
-            if (!rxBuffer.isEmpty()) {
-                const String data = rxBuffer;
-                rxBuffer = "";
-                if (JsonDocument jsonDocument; !deserializeJson(jsonDocument, data)) {
-                    for (const auto &item: serialJsonCallbacks) {
-                        item(jsonDocument);
-                    }
-                } else {
-                    for (const auto &item: serialCallbacks) {
-                        item(data.c_str());
+    if (stream) {
+        while (stream->available() > 0) {
+            if (const char c = static_cast<char>(stream->read()); c == '\r' || c == '\n') {
+                rxBuffer.trim();
+                if (!rxBuffer.isEmpty()) {
+                    const String data = rxBuffer;
+                    rxBuffer = "";
+                    if (JsonDocument jsonDocument; !deserializeJson(jsonDocument, data)) {
+                        for (const auto &item: serialJsonCallbacks) {
+                            item(jsonDocument);
+                        }
+                    } else {
+                        for (const auto &item: serialCallbacks) {
+                            item(data.c_str());
+                        }
                     }
                 }
-            }
-        } else {
-            if (rxBuffer.length() < bufferLength) {
-                rxBuffer += c;
+            } else {
+                if (rxBuffer.length() < bufferLength) {
+                    rxBuffer += c;
+                }
             }
         }
     }

@@ -14,10 +14,21 @@
 #include <freertos/task.h>
 #include <freertos/semphr.h>
 #include <memory>
+#include <Arduino.h>
+#include <HardwareSerial.h>
+#include <HWCDC.h>
 
 
 class SerialManager {
-    HardwareSerial &uartPort;
+    enum class SerialType {
+        HARDWARE_SERIAL,
+        HW_CDC
+    };
+
+    SerialType serialType;
+    HardwareSerial *hwSerial = nullptr;
+    HWCDC *cdcSerial = nullptr;
+    Stream *stream = nullptr;
     int8_t rxPin;
     int8_t txPin;
     uint32_t baudRate;
@@ -37,10 +48,13 @@ class SerialManager {
 
     void run();
 
-    //* THIS CONSTRUCTOR IS PRIVATE TO ENFORCE USAGE THROUGH UNIQUE POINTER CREATION
+    //* THE CONSTRUCTORS ARE PRIVATE TO ENFORCE USAGE THROUGH UNIQUE POINTER CREATION
     explicit SerialManager(HardwareSerial &uartPort, int8_t rxPin = -1, int8_t txPin = -1, uint32_t baudRate = 115200,
                          uint32_t period = 25, uint32_t bufferLength = 1024);
-    // THIS CONSTRUCTOR IS PRIVATE TO ENFORCE USAGE THROUGH UNIQUE POINTER CREATION *//
+
+    explicit SerialManager(HWCDC &serial, uint32_t baudRate = 115200,
+                      uint32_t period = 25, uint32_t bufferLength = 1024);
+    // THE CONSTRUCTORS ARE PRIVATE TO ENFORCE USAGE THROUGH UNIQUE POINTER CREATION *//
 public:
 
     ~SerialManager();
@@ -50,6 +64,11 @@ public:
     static std::unique_ptr<SerialManager> create(HardwareSerial &uartPort, const int8_t rxPin = -1, const int8_t txPin = -1, const uint32_t baudRate = 115200,
                const uint32_t period = 25, const uint32_t bufferLength = 1024) {
         return std::unique_ptr<SerialManager>(new SerialManager(uartPort, rxPin, txPin, baudRate, period, bufferLength));
+    }
+
+    static std::unique_ptr<SerialManager> createHWCDC(HWCDC &serial, const uint32_t baudRate = 115200,
+               const uint32_t period = 25, const uint32_t bufferLength = 1024) {
+        return std::unique_ptr<SerialManager>(new SerialManager(serial, baudRate, period, bufferLength));
     }
 
     void init();
