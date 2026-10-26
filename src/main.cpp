@@ -48,7 +48,7 @@ void setup() {
     ESP_ERROR_CHECK(err);
 
     Monitor::useSerialManager(SerialManager::create(Serial,-1,-1,115200,20));
-    /* Other debug interfaces for Monitor might be attached here in the futura.
+    /* Other debug interfaces for Monitor might be attached here in the future.
      *
      *
      */

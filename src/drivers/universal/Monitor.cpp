@@ -6,16 +6,14 @@
 
 
 void Monitor::useSerialManager(std::unique_ptr<SerialManager> serialManager) {
-    serialInstance = std::move(serialManager);
+    if (!serialInstance) {
+        serialInstance = std::move(serialManager);
+    }
 }
 
 void Monitor::init() {
-    serialInstance->init();
-}
-
-void Monitor::stop() {
     if (serialInstance) {
-        serialInstance->stop();
+        serialInstance->init();
     }
 }
 
@@ -56,13 +54,13 @@ void Monitor::writeLine(const char *str) {
 }
 
 void Monitor::registerCallback(const std::function<void(const char *)> &callback) {
-    if (!serialInstance) {
+    if (serialInstance) {
         serialInstance->registerCallback(callback);
     }
 }
 
 void Monitor::registerJsonCallback(const std::function<void(JsonDocument)> &callback) {
-    if (!serialInstance) {
+    if (serialInstance) {
         serialInstance->registerJsonCallback(callback);
     }
 }

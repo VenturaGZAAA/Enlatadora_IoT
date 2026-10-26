@@ -36,7 +36,6 @@ public:
 
     static void init();
 
-    static void stop();
 
 };
 
