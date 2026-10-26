@@ -95,6 +95,7 @@ class MachineMaster {
     static inline std::function<void()> onStartCommand = nullptr;
     static inline std::function<void()> onPauseCommand = nullptr;
     static inline std::function<void()> onResumeCommand = nullptr;
+    static inline std::function<void()> onControllerUpdated = nullptr;
 
 public:
     MachineMaster() = delete;

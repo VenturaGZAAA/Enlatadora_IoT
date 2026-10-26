@@ -15,6 +15,17 @@
 void MachineMaster::setup() {
     controller = SerialManager::create(Serial1, 18, 17);
     controller->registerJsonCallback(processMachineState);
+    controller->registerCallback([](const char *message) {
+        const auto msg = String(message);
+        if (msg == "UPDATE") {
+            Monitor::writeLine("Controller updated");
+            if (onControllerUpdated) {
+                xTaskCreate([](void *) {
+                    onControllerUpdated();
+                }, "Controller updated", 4096, nullptr, 2, nullptr);
+            }
+        }
+    });
     setUp = true;
 }
 
