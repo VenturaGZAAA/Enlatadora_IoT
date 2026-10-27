@@ -5,8 +5,14 @@
 #include "Monitor.h"
 
 void Monitor::useSerialManager(std::unique_ptr<SerialManager> serialManager) {
-    if (!serialInstance) {
-        serialInstance = std::move(serialManager);
+    serialInstance = std::move(serialManager);
+    if (serialInstance) {
+        for (const auto &cb : callbacks) {
+            serialInstance->registerCallback(cb);
+        }
+        for (const auto &jcb : jsonCallbacks) {
+            serialInstance->registerJsonCallback(jcb);
+        }
     }
 }
 
@@ -19,7 +25,58 @@ AsyncWebSocket &Monitor::enableAsyncWebSocketHandler(const char *path) {
     enabledAsyncWebSocketServer = true;
     ws = std::make_unique<AsyncWebSocket>(path);
     ws->onEvent(onWsEvent);
+    startWsTask();
     return *ws;
+}
+
+void Monitor::startWsTask() {
+    if (!wsQueueMutex) {
+        wsQueueMutex = xSemaphoreCreateMutex();
+    }
+    if (!wsTaskHandle) {
+        xTaskCreate(wsTaskEntry, "MonitorWsTask", 8192, nullptr, 1, &wsTaskHandle);
+    }
+}
+
+void Monitor::enqueueWsMessage(const std::string &message) {
+    if (!wsQueueMutex) return;
+    if (xSemaphoreTake(wsQueueMutex, pdMS_TO_TICKS(10)) == pdTRUE) {
+        if (wsMessageQueue.size() < 50) {
+            wsMessageQueue.push(message);
+        }
+        xSemaphoreGive(wsQueueMutex);
+        if (wsTaskHandle) {
+            xTaskNotifyGive(wsTaskHandle);
+        }
+    }
+}
+
+void Monitor::processWsQueue() {
+    std::string msg;
+    bool hasMsg = false;
+
+    do {
+        hasMsg = false;
+        if (wsQueueMutex && xSemaphoreTake(wsQueueMutex, pdMS_TO_TICKS(10)) == pdTRUE) {
+            if (!wsMessageQueue.empty()) {
+                msg = std::move(wsMessageQueue.front());
+                wsMessageQueue.pop();
+                hasMsg = true;
+            }
+            xSemaphoreGive(wsQueueMutex);
+        }
+
+        if (hasMsg) {
+            dispatchMessage(msg);
+        }
+    } while (hasMsg);
+}
+
+void Monitor::wsTaskEntry(void *pv) {
+    while (true) {
+        ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(50));
+        processWsQueue();
+    }
 }
 
 void Monitor::onWsEvent(AsyncWebSocket *server, const AsyncWebSocketClient *client, AwsEventType type, void *arg,
@@ -43,17 +100,10 @@ void Monitor::onWsEvent(AsyncWebSocket *server, const AsyncWebSocketClient *clie
         case WS_EVT_ERROR:
             break;
         case WS_EVT_DATA: {
-            // the registered callbacks are not going to be called yet in this test.
-            // we are only going to echo them to the serial instance and the clients.
-            if (const auto *info = static_cast<AwsFrameInfo *>(arg); info && info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
+            if (const auto *info = static_cast<AwsFrameInfo *>(arg);
+                info && info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
                 const std::string rawMessage(reinterpret_cast<const char *>(data), len);
-                const String message = rawMessage.c_str();
-                if (ws) {
-                    ws->textAll("Test echo: " + message);
-                }
-                if (serialInstance) {
-                    serialInstance->writeLine("WS test echo: " + message);
-                }
+                enqueueWsMessage(rawMessage);
             }
             break;
         }
@@ -62,10 +112,37 @@ void Monitor::onWsEvent(AsyncWebSocket *server, const AsyncWebSocketClient *clie
 
 #endif
 
+void Monitor::dispatchMessage(const std::string &rawMsg) {
+    String data = rawMsg.c_str();
+    data.trim();
+    if (data.isEmpty()) {
+        return;
+    }
+
+    if (JsonDocument jsonDocument; !deserializeJson(jsonDocument, data)) {
+        for (const auto &item : jsonCallbacks) {
+            if (item) {
+                item(jsonDocument);
+            }
+        }
+    } else {
+        for (const auto &item : callbacks) {
+            if (item) {
+                item(data.c_str());
+            }
+        }
+    }
+}
+
 void Monitor::init() {
     if (serialInstance) {
         serialInstance->init();
     }
+#ifdef ENABLE_USE_ASYNC_WEBSOCKET_SERVER
+    if (enabledAsyncWebSocketServer) {
+        startWsTask();
+    }
+#endif
     isInitialized = true;
 }
 
@@ -135,14 +212,15 @@ void Monitor::writeLine(const char *str) {
 #endif
 }
 
-// We are not implementing WebSockets callbacks yet
 void Monitor::registerCallback(const std::function<void(const char *)> &callback) {
+    callbacks.push_back(callback);
     if (serialInstance) {
         serialInstance->registerCallback(callback);
     }
 }
 
 void Monitor::registerJsonCallback(const std::function<void(JsonDocument)> &callback) {
+    jsonCallbacks.push_back(callback);
     if (serialInstance) {
         serialInstance->registerJsonCallback(callback);
     }
