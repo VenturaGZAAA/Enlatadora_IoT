@@ -130,6 +130,22 @@ bool WifiManager::setup(const String &ap_ssid, const String &ap_password) {
     return startAccessPoint(ap_ssid, ap_password);
 }
 
+void WifiManager::stop() {
+    MDNS.end();
+    WiFi.disconnect(true);
+    WiFi.softAPdisconnect(true);
+    WiFiClass::mode(WIFI_OFF);
+
+    sta_connected = false;
+    start_ap = false;
+
+    Monitor::writeLine("WiFi stopped");
+
+    if (onWifiStopped) {
+        onWifiStopped();
+    }
+}
+
 String WifiManager::getSerializedState() {
     JsonDocument jsonDoc;
     jsonDoc["start_ap"] = start_ap;

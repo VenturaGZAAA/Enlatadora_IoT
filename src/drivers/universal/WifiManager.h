@@ -8,6 +8,7 @@
 #include <Arduino.h>
 #include <Preferences.h>
 #include <ArduinoJson.h>
+#include <functional>
 
 class WifiManager {
     static inline Preferences prefs;
@@ -28,6 +29,12 @@ class WifiManager {
 
 public:
     WifiManager() = delete;
+
+    static inline std::function<void()> onWifiStopped = nullptr;
+
+    static void setOnWifiStopped(std::function<void()> callback) {
+        onWifiStopped = std::move(callback);
+    }
 
     static void addService(const char *serviceName, const char *serviceType, size_t port);
 
@@ -51,6 +58,8 @@ public:
 
     static bool setup(const String &ap_ssid = "", const String &ap_password = "");
 
+    static void stop();
+
     static bool isConnected() { return sta_connected; }
     static bool isFailedToConnect() { return !start_ap && !sta_connected; }
 
@@ -58,6 +67,7 @@ public:
     static IPAddress getServerIP();
 
     static String getSerializedState();
+
 };
 
 
