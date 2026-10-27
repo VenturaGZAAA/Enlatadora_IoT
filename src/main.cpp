@@ -65,8 +65,8 @@ void setup() {
     delay(100);
     EvenTheRGBLedHasManagers::setColor(RGBColor::White(), 250);
 
-    // --- 2. Serial Interface Callbacks ---
-    // Register handlers for incoming JSON payloads and commands received over Serial.
+    // --- 2. Monitor Interface Callbacks ---
+    // Register handlers for incoming JSON payloads and commands received over Monitor interfaces (Serial, WebSocket, etc.).
     Monitor::registerJsonCallback(WifiManager::wifiConfigJsonCallback);
     Monitor::registerJsonCallback(MachineMaster::outputsWriteJsonCallback);
     Monitor::registerCallback(MachineMaster::processCommands);
@@ -130,7 +130,7 @@ void setup() {
     MqttManager::registerCallback("machine/command", MachineMaster::processCommands);
 
     // --- 5. Periodic Telemetry Publishing ---
-    // Publish Wi-Fi status every 5 seconds.
+    // Publish Wi-Fi status every 3 seconds.
     MqttManager::registerPeriodicPublish("config/wifi/state", 3000, WifiManager::getSerializedState);
     // Publish overall canning machine state every 1 second.
     MqttManager::registerPeriodicPublish("machine/state/read", 1000, MachineMaster::getSerializedState);
@@ -143,9 +143,11 @@ void setup() {
     // Start background MQTT networking tasks.
     MqttManager::begin();
 
-    // --- 6. Web Dashboard Server ---
-    // Start local HTTP dashboard server for local monitoring and control.
+    // --- 6. Web Dashboard Server & Debug WebSocket ---
+    // Register WebSocket handler for Monitor and setup endpoints before starting HTTP server.
+#ifdef ENABLE_USE_ASYNC_WEBSOCKET_SERVER
     WebSeverManager::addHandler(&Monitor::enableAsyncWebSocketHandler());
+#endif
     WebSeverManager::enableWifiPostEndpoint("/wifi/set");
     WebSeverManager::enableOTASupport("admin", "admin");
     WebSeverManager::setup();

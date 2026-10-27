@@ -4,16 +4,16 @@
 #include <Arduino.h>
 #include "Monitor.h"
 
-
 void Monitor::useSerialManager(std::unique_ptr<SerialManager> serialManager) {
     if (!serialInstance) {
         serialInstance = std::move(serialManager);
     }
 }
-#ifdef  ENABLE_USE_ASYNC_WEBSOCKET_SERVER
+
+#ifdef ENABLE_USE_ASYNC_WEBSOCKET_SERVER
 
 AsyncWebSocket &Monitor::enableAsyncWebSocketHandler(const char *path) {
-    if (enabledAsyncWebSocketServer)
+    if (enabledAsyncWebSocketServer && ws)
         return *ws;
 
     enabledAsyncWebSocketServer = true;
@@ -22,19 +22,19 @@ AsyncWebSocket &Monitor::enableAsyncWebSocketHandler(const char *path) {
     return *ws;
 }
 
-
 void Monitor::onWsEvent(AsyncWebSocket *server, const AsyncWebSocketClient *client, AwsEventType type, void *arg,
                         uint8_t *data, const size_t len) {
     if (!isInitialized.load())
         return;
+
     switch (type) {
         case WS_EVT_CONNECT:
-            if (serialInstance) {
-                serialInstance->write("Ws client connected: " + client->remoteIP().toString());
+            if (serialInstance && client) {
+                serialInstance->writeLine("Ws client connected: " + client->remoteIP().toString());
             }
             break;
         case WS_EVT_DISCONNECT:
-            if (serialInstance) {
+            if (serialInstance && client) {
                 serialInstance->writeLine("Ws client disconnected: " + client->remoteIP().toString());
             }
             break;
@@ -42,25 +42,25 @@ void Monitor::onWsEvent(AsyncWebSocket *server, const AsyncWebSocketClient *clie
         case WS_EVT_PONG:
         case WS_EVT_ERROR:
             break;
-        case WS_EVT_DATA:
+        case WS_EVT_DATA: {
             // the registered callbacks are not going to be called yet in this test.
-            // we are only going to echo tem to the serial instance and the clients.
-            const auto *info = static_cast<AwsFrameInfo *>(arg);
-            if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
-                data[len] = '\0';
-                const String message = reinterpret_cast<char *>(data);
-                ws->textAll("Test echo: " +message);
+            // we are only going to echo them to the serial instance and the clients.
+            if (const auto *info = static_cast<AwsFrameInfo *>(arg); info && info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
+                const std::string rawMessage(reinterpret_cast<const char *>(data), len);
+                const String message = rawMessage.c_str();
+                if (ws) {
+                    ws->textAll("Test echo: " + message);
+                }
                 if (serialInstance) {
-                    serialInstance->writeLine("WS test echo: " +message);
+                    serialInstance->writeLine("WS test echo: " + message);
                 }
             }
             break;
+        }
     }
 }
 
-
 #endif
-
 
 void Monitor::init() {
     if (serialInstance) {
@@ -74,7 +74,7 @@ void Monitor::write(const std::string &message) {
         serialInstance->write(message);
     }
 #ifdef ENABLE_USE_ASYNC_WEBSOCKET_SERVER
-    if (enabledAsyncWebSocketServer) {
+    if (enabledAsyncWebSocketServer && ws) {
         ws->textAll(message.c_str());
     }
 #endif
@@ -85,7 +85,7 @@ void Monitor::write(const String &message) {
         serialInstance->write(message);
     }
 #ifdef ENABLE_USE_ASYNC_WEBSOCKET_SERVER
-    if (enabledAsyncWebSocketServer) {
+    if (enabledAsyncWebSocketServer && ws) {
         ws->textAll(message);
     }
 #endif
@@ -96,7 +96,7 @@ void Monitor::write(const char *str) {
         serialInstance->write(str);
     }
 #ifdef ENABLE_USE_ASYNC_WEBSOCKET_SERVER
-    if (enabledAsyncWebSocketServer) {
+    if (enabledAsyncWebSocketServer && ws) {
         ws->textAll(str);
     }
 #endif
@@ -107,7 +107,7 @@ void Monitor::writeLine(const std::string &message) {
         serialInstance->writeLine(message);
     }
 #ifdef ENABLE_USE_ASYNC_WEBSOCKET_SERVER
-    if (enabledAsyncWebSocketServer) {
+    if (enabledAsyncWebSocketServer && ws) {
         ws->textAll(message.c_str());
     }
 #endif
@@ -118,7 +118,7 @@ void Monitor::writeLine(const String &message) {
         serialInstance->writeLine(message);
     }
 #ifdef ENABLE_USE_ASYNC_WEBSOCKET_SERVER
-    if (enabledAsyncWebSocketServer) {
+    if (enabledAsyncWebSocketServer && ws) {
         ws->textAll(message);
     }
 #endif
@@ -129,7 +129,7 @@ void Monitor::writeLine(const char *str) {
         serialInstance->writeLine(str);
     }
 #ifdef ENABLE_USE_ASYNC_WEBSOCKET_SERVER
-    if (enabledAsyncWebSocketServer) {
+    if (enabledAsyncWebSocketServer && ws) {
         ws->textAll(str);
     }
 #endif
