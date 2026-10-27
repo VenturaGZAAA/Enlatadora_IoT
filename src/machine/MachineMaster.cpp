@@ -34,6 +34,7 @@ void MachineMaster::setup() {
         lastMachineHeartbeatTime = millis();
         machineHeartBeating = true;
     });
+    lastMachineHeartbeatTime = millis();
     setUp = true;
 }
 
@@ -296,10 +297,10 @@ void MachineMaster::setOnResumeCallback(std::function<void()> callback) {
 
 [[noreturn]] void MachineMaster::run() {
     for (;;) {
-        vTaskDelay(pdMS_TO_TICKS(1000));
         controller->writeLine("HEARTBEAT");
         if (millis() - lastMachineHeartbeatTime > 5000) {
             machineHeartBeating = false;
         }
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
