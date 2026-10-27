@@ -7,6 +7,8 @@
 
 #include <string>
 #include <functional>
+#include <atomic>
+
 #include <ArduinoJson.h>
 #include "SerialManager.h"
 #if __has_include(<ESPAsyncWebServer.h>)
@@ -25,6 +27,7 @@ class Monitor {
                         void *arg, uint8_t *data, size_t len);
 #endif
 
+    static inline  std::atomic<bool> isInitialized {false};
 public:
     Monitor() = delete;
 
