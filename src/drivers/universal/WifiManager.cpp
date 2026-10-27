@@ -130,20 +130,22 @@ bool WifiManager::setup(const String &ap_ssid, const String &ap_password) {
     return startAccessPoint(ap_ssid, ap_password);
 }
 
-void WifiManager::stop() {
-    MDNS.end();
-    WiFi.disconnect(true);
-    WiFi.softAPdisconnect(true);
-    WiFiClass::mode(WIFI_OFF);
-
-    sta_connected = false;
-    start_ap = false;
-
+void WifiManager::stop(const uint32_t delay) {
     Monitor::writeLine("WiFi stopped");
 
     if (onWifiStopped) {
         onWifiStopped();
     }
+    sta_connected = false;
+    start_ap = false;
+    disconnectDelay = delay;
+    xTaskCreatePinnedToCore([](void *) {
+        vTaskDelay(pdMS_TO_TICKS(disconnectDelay.load()));
+        MDNS.end();
+        WiFi.disconnect(true);
+        WiFi.softAPdisconnect(true);
+        WiFiClass::mode(WIFI_OFF);
+    }, "WiFiStopTask", 4096, nullptr, 1, nullptr, 0);
 }
 
 String WifiManager::getSerializedState() {

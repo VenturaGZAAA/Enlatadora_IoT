@@ -27,6 +27,7 @@ class WifiManager {
 
     static void setupMdns();
 
+    static inline std::atomic<uint32_t> disconnectDelay = 1000;
 public:
     WifiManager() = delete;
 
@@ -58,7 +59,7 @@ public:
 
     static bool setup(const String &ap_ssid = "", const String &ap_password = "");
 
-    static void stop();
+    static void stop(uint32_t delay = 1000);
 
     static bool isConnected() { return sta_connected; }
     static bool isFailedToConnect() { return !start_ap && !sta_connected; }
