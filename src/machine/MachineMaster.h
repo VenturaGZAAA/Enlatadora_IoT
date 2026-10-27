@@ -74,6 +74,8 @@ class MachineMaster {
     static inline bool forcedAuthorization = false;
 
     static inline bool allowOutputOverride = true;
+    static inline bool machineHeartBeating = false;
+    static inline unsigned long lastMachineHeartbeatTime = 0;
     static inline TaskHandle_t taskHandle = nullptr;
 
     [[noreturn]] static void run();

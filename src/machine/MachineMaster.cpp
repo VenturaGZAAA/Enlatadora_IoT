@@ -26,6 +26,14 @@ void MachineMaster::setup() {
             }
         }
     });
+    controller->registerCallback([](const char *) {
+        lastMachineHeartbeatTime = millis();
+        machineHeartBeating = true;
+    });
+    controller->registerJsonCallback([](const JsonDocument &json) {
+        lastMachineHeartbeatTime = millis();
+        machineHeartBeating = true;
+    });
     setUp = true;
 }
 
@@ -131,6 +139,7 @@ String MachineMaster::getStage() {
 
 String MachineMaster::getSerializedState() {
     JsonDocument jsonDoc;
+    jsonDoc["machineHeartBeating"] = machineHeartBeating;
     jsonDoc["running"] = machineRunning;
     jsonDoc["paused"] = machinePaused;
     jsonDoc["authorizedSystem"] = authorizedSystem;
@@ -288,5 +297,9 @@ void MachineMaster::setOnResumeCallback(std::function<void()> callback) {
 [[noreturn]] void MachineMaster::run() {
     for (;;) {
         vTaskDelay(pdMS_TO_TICKS(1000));
+        controller->writeLine("HEARTBEAT");
+        if (millis() - lastMachineHeartbeatTime > 5000) {
+            machineHeartBeating = false;
+        }
     }
 }
