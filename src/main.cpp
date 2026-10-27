@@ -1,13 +1,3 @@
-/**
- * @file main.cpp
- * @brief Application entry point for the IoT Canning Machine controller.
- * 
- * This file coordinates system initialization and high-level communications:
- * 1. Hardware & Core Subsystems: Non-volatile storage, serial communication, and status LED.
- * 2. Communication Interfaces: Serial command handling, Wi-Fi networking, Web Dashboard, and MQTT.
- * 3. Machine Control: Registers remote and local control endpoints, telemetry publishers,
- *    and launches the canning state machine.
- */
 
 #include <WiFi.h>
 #include <PicoMQTT.h>
@@ -48,12 +38,11 @@ void setup() {
     ESP_ERROR_CHECK(err);
 
     Monitor::useSerialManager(SerialManager::create(Serial,-1,-1,115200,20));
+
     /* Other debug interfaces for Monitor might be attached here in the future.
      *
      *
      */
-    Monitor::init();
-
 
     Serial.printf("PSRAM found: %d\n", psramFound());
     Serial.printf("PSRAM size:  %u bytes\n", ESP.getPsramSize());
@@ -64,6 +53,7 @@ void setup() {
     Serial.printf("Largest HEAP  block: %u bytes\n",
                   heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT));
 
+    Monitor::init();
 
     SdCardManager::init("/CanningMachine");
 
@@ -155,6 +145,7 @@ void setup() {
 
     // --- 6. Web Dashboard Server ---
     // Start local HTTP dashboard server for local monitoring and control.
+    WebSeverManager::addHandler(&Monitor::enableAsyncWebSocketHandler());
     WebSeverManager::enableWifiPostEndpoint("/wifi/set");
     WebSeverManager::enableOTASupport("admin", "admin");
     WebSeverManager::setup();

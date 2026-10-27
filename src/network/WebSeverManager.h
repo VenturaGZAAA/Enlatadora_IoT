@@ -40,6 +40,7 @@ public:
     static void setup();
 
     static void setOnUpdateSuccessful(std::function<void()> callback);
+    static void addHandler(AsyncWebHandler *handler) { server.addHandler(handler);}
 #ifdef SD_CARD_CONNECTED
     static void setOnRootRequested(std::function<void()> callback);
 #endif

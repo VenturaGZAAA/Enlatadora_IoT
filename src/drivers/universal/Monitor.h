@@ -9,9 +9,21 @@
 #include <functional>
 #include <ArduinoJson.h>
 #include "SerialManager.h"
+#if __has_include(<ESPAsyncWebServer.h>)
+#include <ESPAsyncWebServer.h>
+#define ENABLE_USE_ASYNC_WEBSOCKET_SERVER
+#endif
+
 
 class Monitor {
-    static inline  auto serialInstance = SerialManager::reserve();
+    static inline bool enabledAsyncWebSocketServer = false;
+
+    static inline auto serialInstance = SerialManager::reserve();
+#ifdef ENABLE_USE_ASYNC_WEBSOCKET_SERVER
+    static inline std::unique_ptr<AsyncWebSocket> ws;
+    static void onWsEvent(AsyncWebSocket *server, const AsyncWebSocketClient *client, AwsEventType type,
+                        void *arg, uint8_t *data, size_t len);
+#endif
 
 public:
     Monitor() = delete;
@@ -34,9 +46,12 @@ public:
 
     static void useSerialManager(std::unique_ptr<SerialManager> serialManager);
 
+#ifdef  ENABLE_USE_ASYNC_WEBSOCKET_SERVER
+    static AsyncWebSocket &enableAsyncWebSocketHandler(const char * path = "/ws");
+#endif
+
+
     static void init();
-
-
 };
 
 
