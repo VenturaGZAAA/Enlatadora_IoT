@@ -7,6 +7,7 @@
 
 #include <WiFi.h>
 #include <ESPAsyncWebServer.h>
+#include <atomic>
 
 class WebSeverManager {
     static AsyncWebServer server;
@@ -26,6 +27,7 @@ class WebSeverManager {
 #endif
 
     static inline std::function<void()> onUpdateSuccessful = nullptr;
+    static inline std::atomic<uint32_t> resetDelay = 2500;
 
 public:
     WebSeverManager() = delete;
@@ -35,12 +37,14 @@ public:
 
     static void enableWifiPostEndpoint(const String &path);
 
-    static void enableOTASupport(const char *username, const char *password, const char *path = "/firmware");
+    static void enableOTASupport(const char *username, const char *password, const char *path = "/firmware",
+                                 uint32_t delay = 2500);
 
     static void setup();
 
     static void setOnUpdateSuccessful(std::function<void()> callback);
-    static void addHandler(AsyncWebHandler *handler) { server.addHandler(handler);}
+
+    static void addHandler(AsyncWebHandler *handler) { server.addHandler(handler); }
 #ifdef SD_CARD_CONNECTED
     static void setOnRootRequested(std::function<void()> callback);
 #endif

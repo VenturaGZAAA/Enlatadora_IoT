@@ -80,11 +80,12 @@ void WebSeverManager::enableWifiPostEndpoint(const String &path) {
     registerJsonPostEndpoint(path, WifiManager::wifiConfigJsonCallback, "Error parsing JSON for Wifi config on HTTP: ");
 }
 
-void WebSeverManager::enableOTASupport(const char *username, const char *password, const char *path) {
+void WebSeverManager::enableOTASupport(const char *username, const char *password, const char *path,
+                                       const uint32_t delay) {
     const String user = username ? String(username) : String();
     const String pass = password ? String(password) : String();
     const bool authRequired = user.length() > 0 && pass.length() > 0;
-
+    resetDelay.store(delay);
     auto &handler = server.on(
         path, HTTP_POST,
         // 1. Final Request Handler (runs after upload finishes)
@@ -109,7 +110,7 @@ void WebSeverManager::enableOTASupport(const char *username, const char *passwor
                         onUpdateSuccessful();
                     }
                     Monitor::writeLine("Update OK, rebooting...");
-                    vTaskDelay(pdMS_TO_TICKS(1000));
+                    vTaskDelay(pdMS_TO_TICKS(resetDelay.load()));
                     ESP.restart();
                 }, "ota_restart", 2048, nullptr, 1, nullptr);
             } else {
@@ -211,7 +212,7 @@ void WebSeverManager::handleFileRequest(AsyncWebServerRequest *request) {
 
 #ifndef SD_CARD_CONNECTED
     Monitor::writeLine("🌐 HTTP server request unhandled: " + path);
-    request->send(404, "text/plain", "File not found");
+    request->send(404, "text/plain", "File not found, better luck next time");
 #else
     if (path == "/" || path == "") {
         path = webPath + "/index.html";
