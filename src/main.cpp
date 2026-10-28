@@ -45,9 +45,9 @@ void setup() {
      */
 
     Serial.printf("PSRAM found: %d\n", psramFound());
-    Serial.printf("PSRAM size:  %u bytes\n", ESP.getPsramSize());
-    Serial.printf("Free PSRAM:  %u bytes\n", ESP.getFreePsram());
-    Serial.printf("Free Heap:   %u bytes\n", ESP.getFreeHeap());
+    Serial.printf("PSRAM size:  %u bytes\n", static_cast<unsigned int>(ESP.getPsramSize()));
+    Serial.printf("Free PSRAM:  %u bytes\n", static_cast<unsigned int>(ESP.getFreePsram()));
+    Serial.printf("Free Heap:   %u bytes\n", static_cast<unsigned int>(ESP.getFreeHeap()));
     Serial.printf("Largest PSRAM block: %u bytes\n",
                   heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM));
     Serial.printf("Largest HEAP  block: %u bytes\n",
