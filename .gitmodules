@@ -1,0 +1,3 @@
+[submodule "lib/EspManagers"]
+	path = lib/EspManagers
+	url = https://github.com/VenturaGZAAA/EspManagers.git

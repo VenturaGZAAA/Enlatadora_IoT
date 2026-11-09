@@ -7,14 +7,14 @@
 #endif
 #include "config/secrets.h"
 #include "audio/VoiceKeywordModule.h"
-#include "drivers/s3/EvenTheRGBLedHasManagers.h"
-#include "drivers/specific/SdCardManager.h"
-#include "drivers/universal/Monitor.h"
-#include "drivers/universal/SerialManager.h"
-#include "drivers/universal/WifiManager.h"
+#include "EvenTheRGBLedHasManagers.h"
+#include "SdCardManager.h"
+#include "Monitor.h"
+#include "SerialManager.h"
+#include "WifiManager.h"
 #include "machine/MachineMaster.h"
-#include "network/MqttManager.h"
-#include "network/WebSeverManager.h"
+#include "MqttManager.h"
+#include "WebSeverManager.h"
 
 /*  ====== POWER CONSUMPTION IN STA MODE =====
  *  current hardware: ESP32-S3 (this), ESP32-S3 (empty), microphone, sd card reader.

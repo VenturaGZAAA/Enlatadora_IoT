@@ -11,7 +11,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <ArduinoJson.h>
-#include <drivers/universal/SerialManager.h>
+#include <SerialManager.h>
 
 
 class MachineMaster {

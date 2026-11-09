@@ -7,8 +7,8 @@
 #if __has_include("config/build_flags.h")
 #include "config/build_flags.h"
 #endif
-#include "drivers/universal/Monitor.h"
-#include "drivers/universal/WifiManager.h"
+#include "Monitor.h"
+#include "WifiManager.h"
 #include <utility>
 #include <driver/gpio.h>
 
