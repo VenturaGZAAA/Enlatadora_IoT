@@ -1,4 +1,3 @@
-
 #include <WiFi.h>
 #include <PicoMQTT.h>
 #include <nvs_flash.h>
@@ -14,7 +13,7 @@
 #include "WifiManager.h"
 #include "machine/MachineMaster.h"
 #include "MqttManager.h"
-#include "WebSeverManager.h"
+#include "WebServerManager.h"
 
 /*  ====== POWER CONSUMPTION IN STA MODE =====
  *  current hardware: ESP32-S3 (this), ESP32-S3 (empty), microphone, sd card reader.
@@ -37,7 +36,7 @@ void setup() {
     }
     ESP_ERROR_CHECK(err);
 
-    Monitor::useSerialManager(SerialManager::create(Serial,-1,-1,115200,20));
+    Monitor::useSerialManager(SerialManager::create(Serial, -1, -1, 115200, 20));
 
     /* Other debug interfaces for Monitor might be attached here in the future.
      *
@@ -146,16 +145,15 @@ void setup() {
     // --- 6. Web Dashboard Server & Debug WebSocket ---
     // Register WebSocket handler for Monitor and setup endpoints before starting HTTP server.
 #ifdef ENABLE_USE_ASYNC_WEBSOCKET_SERVER
-    WebSeverManager::addHandler(&Monitor::enableAsyncWebSocketHandler());
+    WebServerManager::addHandler(&Monitor::enableAsyncWebSocketHandler());
 #endif
-    WebSeverManager::enableWifiPostEndpoint("/wifi/set");
-    WebSeverManager::enableOTASupport("admin", "admin");
-    WebSeverManager::setup();
+    WebServerManager::enableWifiPostEndpoint("/wifi/set");
+    WebServerManager::enableOTASupport("admin", "admin");
+    WebServerManager::setup();
 
-    WebSeverManager::setOnRootRequested([] {
+    WebServerManager::setOnRootRequested([] {
         EvenTheRGBLedHasManagers::setColor(RGBColor::Yellow().withAlphaInt(200), 250);
     });
-
 
     // Register keyword → event handlers
     VoiceKeywordModule::registerKeyword(MachineMaster::allCom, [](const String &cmd) {
