@@ -36,20 +36,20 @@ void setup() {
     }
     ESP_ERROR_CHECK(err);
 
-    Monitor::useSerialManager(SerialManager::create(Serial, -1, -1, 115200, 20));
+    Monitor::registerInstance(SerialManager::create(Serial0, -1, -1, 115200, 20));
 
     /* Other debug interfaces for Monitor might be attached here in the future.
      *
      *
      */
 
-    Serial.printf("PSRAM found: %d\n", psramFound());
-    Serial.printf("PSRAM size:  %u bytes\n", static_cast<unsigned int>(ESP.getPsramSize()));
-    Serial.printf("Free PSRAM:  %u bytes\n", static_cast<unsigned int>(ESP.getFreePsram()));
-    Serial.printf("Free Heap:   %u bytes\n", static_cast<unsigned int>(ESP.getFreeHeap()));
-    Serial.printf("Largest PSRAM block: %u bytes\n",
+    Serial0.printf("PSRAM found: %d\n", psramFound());
+    Serial0.printf("PSRAM size:  %u bytes\n", static_cast<unsigned int>(ESP.getPsramSize()));
+    Serial0.printf("Free PSRAM:  %u bytes\n", static_cast<unsigned int>(ESP.getFreePsram()));
+    Serial0.printf("Free Heap:   %u bytes\n", static_cast<unsigned int>(ESP.getFreeHeap()));
+    Serial0.printf("Largest PSRAM block: %u bytes\n",
                   heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM));
-    Serial.printf("Largest HEAP  block: %u bytes\n",
+    Serial0.printf("Largest HEAP  block: %u bytes\n",
                   heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT));
 
     Monitor::init();

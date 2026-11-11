@@ -14,8 +14,8 @@
 
 void MachineMaster::setup() {
     controller = SerialManager::create(Serial1, 18, 17);
-    controller->registerJsonCallback(processMachineState);
-    controller->registerCallback([](const char *message) {
+    controller->onJsonReceived += (processMachineState);
+    controller->onCommandReceived += [](const char *message) {
         const auto msg = String(message);
         if (msg == "UPDATE") {
             Monitor::writeLine("Controller updated");
@@ -25,15 +25,15 @@ void MachineMaster::setup() {
                 }, "Controller updated", 4096, nullptr, 2, nullptr);
             }
         }
-    });
-    controller->registerCallback([](const char *) {
+    };
+    controller->onCommandReceived +=[](const char *) {
         lastMachineHeartbeatTime = millis();
         machineHeartBeating = true;
-    });
-    controller->registerJsonCallback([](const JsonDocument &json) {
+    };
+    controller->onJsonReceived +=[](const JsonDocument &) {
         lastMachineHeartbeatTime = millis();
         machineHeartBeating = true;
-    });
+    };
     lastMachineHeartbeatTime = millis();
     setUp = true;
 }
@@ -228,7 +228,7 @@ void MachineMaster::processCommands(const char *command) {
         allowOutputOverride = false;
     } else {
         cmd.toLowerCase();
-        if (std::find(allCom.begin(), allCom.end(), cmd) != allCom.end()) {
+        if (std::ranges::find(allCom, cmd) != allCom.end()) {
             Monitor::writeLine("Command processed: " + cmd);
             processCommand(commandFromString(cmd));
         }
@@ -236,16 +236,16 @@ void MachineMaster::processCommands(const char *command) {
 }
 
 MachineMaster::Commands MachineMaster::commandFromString(const String &str) {
-    if (std::find(stopCom.begin(), stopCom.end(), str) != stopCom.end()) {
+    if (std::ranges::find(stopCom, str) != stopCom.end()) {
         return Commands::Stop;
     }
-    if (std::find(pauseCom.begin(), pauseCom.end(), str) != pauseCom.end()) {
+    if (std::ranges::find(pauseCom, str) != pauseCom.end()) {
         return Commands::Pause;
     }
-    if (std::find(startCom.begin(), startCom.end(), str) != startCom.end()) {
+    if (std::ranges::find(startCom, str) != startCom.end()) {
         return Commands::Start;
     }
-    if (std::find(resumeCom.begin(), resumeCom.end(), str) != resumeCom.end()) {
+    if (std::ranges::find(resumeCom, str) != resumeCom.end()) {
         return Commands::Resume;
     }
     return Commands::Unknown;
