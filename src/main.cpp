@@ -143,11 +143,8 @@ void setup() {
     // Start background MQTT networking tasks.
     MqttManager::begin();
 
-    // --- 6. Web Dashboard Server & Debug WebSocket ---
-    // Register WebSocket handler for Monitor and setup endpoints before starting HTTP server.
-#ifdef ENABLE_USE_ASYNC_WEBSOCKET_SERVER
-    WebServerManager::addHandler(&Monitor::enableAsyncWebSocketHandler());
-#endif
+    // --- 6. Web Dashboard Server  ---
+
     WebServerManager::enableWifiPostEndpoint("/wifi/set");
     WebServerManager::enableOTASupport("admin", "admin");
     WebServerManager::setup();
