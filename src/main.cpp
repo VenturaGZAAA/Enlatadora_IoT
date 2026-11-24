@@ -25,6 +25,11 @@
  *  on audio/http transaction: ~220 mA
  */
 
+#define SD_CS   11
+#define SD_MOSI 12
+#define SD_SCK  13
+#define SD_MISO 14
+
 
 void setup() {
     // --- 1. Core Hardware & Storage Initialization ---
@@ -48,13 +53,16 @@ void setup() {
     Serial0.printf("Free PSRAM:  %u bytes\n", static_cast<unsigned int>(ESP.getFreePsram()));
     Serial0.printf("Free Heap:   %u bytes\n", static_cast<unsigned int>(ESP.getFreeHeap()));
     Serial0.printf("Largest PSRAM block: %u bytes\n",
-                  heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM));
+                   heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM));
     Serial0.printf("Largest HEAP  block: %u bytes\n",
-                  heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT));
+                   heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT));
 
     Monitor::init();
 
-    SdCardManager::init("/CanningMachine");
+
+    SdCardManager::init(SpiPins(SD_SCK,SD_MISO,SD_MOSI,SD_CS),
+        SdSpiConfig(SD_CS, SHARED_SPI, SD_SCK_MHZ(4), &SPI),
+                        "/CanningMachine");
 
     EvenTheRGBLedHasManagers::init();
 
@@ -74,7 +82,7 @@ void setup() {
     // --- 3. Network Connection (Wi-Fi) ---
     // Connect to configured Wi-Fi network; restart system if configuration/connection fails.
     WifiManager::setHostname("enlatadora-master");
-    WifiManager::setDefaultSTA(STA_SSID,STA_PASS);
+    WifiManager::forceSTA(STA_SSID,STA_PASS);
     if (!WifiManager::setup("Enlatadora-IoT", "12345678")) {
         Serial.println("Failed to setup WiFi");
         delay(1000);
