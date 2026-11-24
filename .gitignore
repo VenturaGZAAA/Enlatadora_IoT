@@ -11,3 +11,4 @@ src/config/secrets.h
 src/config/build_flags.h
 src/drivers/universal/wifi_secrets.h
 compile_commands.json
+*.bin
